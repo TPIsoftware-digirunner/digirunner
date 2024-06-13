@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: digi-keeper
+  namespace: $NAMESPACE
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"digi-keeper":"digi-keeper-backendconfig"}}'
+    cloud.google.com/app-protocols: '{"digi-keeper":"HTTPS"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  ports:
+    - name: digi-keeper
+      port: 8445
+      targetPort: 8445
+  selector:
+    app: digi-keeper
+  type: NodePort

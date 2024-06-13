@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: digi-ingress
+  namespace: $NAMESPACE
+  annotations:
+    networking.gke.io/v1beta1.FrontendConfig: ingress-frontend-config
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "dgr-ingress"
+    networking.gke.io/managed-certificates: managed-cert
+    ingress.gcp.kubernetes.io/pre-shared-cert: "digi-cert"
+spec:
+  rules:
+    - host: $DIGI_DOMAIN
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: digi
+                port:
+                  number: 8442
+          - path: /dgrv4/ac4/login
+            pathType: Exact
+            backend:
+              service:
+                name: digi
+                port:
+                  number: 8442

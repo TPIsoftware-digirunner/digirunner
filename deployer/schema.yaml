@@ -1,0 +1,55 @@
+x-google-marketplace:
+  schemaVersion: v2
+  applicationApiVersion: v1beta1
+  publishedVersion: "4.2.5"
+  publishedVersionMetadata:
+    releaseNote: >-
+      Initial release.
+    releaseTypes:
+      - Feature
+    recommended: false
+  images:
+    digirunner:
+      properties:
+        imageDigiRepo:
+          type: FULL
+        imageDigiTag:
+          type: TAG
+    composer:
+      properties:
+        imageComposerRepo:
+          type: FULL
+    ubbagent:
+      properties:
+        imageUbbagent:
+          type: FULL
+properties:
+  NAME:
+    type: string
+    x-google-marketplace:
+      type: NAME
+  NAMESPACE:
+    type: string
+    default: digirunner
+    x-google-marketplace:
+      type: NAMESPACE
+  PROJECT_NUM:
+    type: string
+    default: default
+  PROJECT_ID:
+    type: string
+    default: default
+  REGION:
+    type: string
+    default: asia-east1
+  reportingSecret:
+    type: string
+    x-google-marketplace:
+      type: REPORTING_SECRET
+required:
+- NAME
+- NAMESPACE
+- PROJECT_NUM
+- PROJECT_ID
+- REGION
+- reportingSecret

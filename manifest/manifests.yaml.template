@@ -1,0 +1,586 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: digi
+  name: digirunner
+  namespace: $NAMESPACE
+  annotations:
+    iam.gke.io/gcp-service-account: $PROJECT_NUM-compute@developer.gserviceaccount.com
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: digi
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: digi
+    spec:
+      imagePullSecrets:
+        - name: pull-images-secret
+      containers:
+      - env:
+        - name: Xmx
+          value: 3g
+        - name: Xms
+          value: 3g
+        - name: active
+          value: gcp
+        - name: TAEASK_KEY
+          value: TsmpAESEncryptionActionSecretKey
+        - name: port
+          value: '8442'
+        image: $imageDigiRepo
+        imagePullPolicy: Always
+        name: digirunner-main
+        ports:
+        - containerPort: 8445
+          protocol: TCP
+        - containerPort: 8442
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 900m
+            memory: 3584Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - name: config-volume
+          mountPath: /usr/share/digiRunner/config/
+      - args:
+        - "1024"
+        image: $imageComposerRepo
+        imagePullPolicy: Always
+        name: composer
+        ports:
+        - containerPort: 8440
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1G
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      - name: ubbagent
+        image: $imageUbbagent
+        env:
+        - name: AGENT_CONFIG_FILE
+          value: "/etc/ubbagent/config.yaml"
+        - name: AGENT_LOCAL_PORT
+          value: "4567"
+        - name: AGENT_ENCODED_KEY
+          valueFrom:
+            secretKeyRef:
+              name: $reportingSecret
+              key: reporting-key
+        - name: AGENT_CONSUMER_ID
+          valueFrom:
+            secretKeyRef:
+              name: $reportingSecret
+              key: consumer-id
+        volumeMounts:
+        - name: ubbagent-config
+          mountPath: /etc/ubbagent
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config-volume
+        configMap:
+          name: properties-mounts
+      - name: ubbagent-config
+        configMap:
+          name: ubbagent-config
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: digi
+  namespace: $NAMESPACE
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"digi":"digi-backendconfig"}}'
+    cloud.google.com/app-protocols: '{"digi":"HTTPS"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  ports:
+    - name: digi
+      port: 8442
+      targetPort: 8442
+  selector:
+    app: digi
+  type: NodePort
+
+---
+
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: digi-backendconfig
+spec:
+  healthCheck:
+    checkIntervalSec: 5
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 2
+    type: HTTPS
+    requestPath: /dgrv4/version
+    port: 8442
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: composer-svc
+  namespace: $NAMESPACE
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"composer":"composer-backendconfig"}}'
+    cloud.google.com/app-protocols: '{"composer":"HTTPS"}'
+spec:
+  ports:
+  - name: composer
+    port: 8440
+    protocol: TCP
+    targetPort: 8440
+  selector:
+    app: digi
+
+---
+
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: composer-backendconfig
+spec:
+  healthCheck:
+    checkIntervalSec: 5
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 2
+    type: HTTPS
+    requestPath: /editor/hello
+    port: 8440
+
+---
+
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJhc2lhLWVhc3QxLWRvY2tlci5wa2cuZGV2Ijp7InVzZXJuYW1lIjoiX2pzb25fa2V5IiwicGFzc3dvcmQiOiJ7XG4gIFwidHlwZVwiOiBcInNlcnZpY2VfYWNjb3VudFwiLFxuICBcInByb2plY3RfaWRcIjogXCJ0cGktZHRkLXNlcnZpY2VcIixcbiAgXCJwcml2YXRlX2tleV9pZFwiOiBcIjJjNTRlMTQwMDZjMmNjMzk0ZmNmYzBmYWY3ZDJjMTA5NDk5Y2E2MTNcIixcbiAgXCJwcml2YXRlX2tleVwiOiBcIi0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLVxcbk1JSUV1Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktRd2dnU2dBZ0VBQW9JQkFRQ3h5aHhKcWpBUlltSXNcXG5UNkQweVZFZEFuc3pGZmZpdFhEem54TWFuS1A3Q1dCZkxrYTlLbEtEQU80RlRVaE9uQ1BJSVIxbEdtWFdaQTRFXFxubmY3V09qMHBYczFpV215OG1DTlVoeHp0eGJvbkplbUNCaFIxMjdpb0NGYW02NmxFMllqWHJxclExTWJodTFwR1xcbjJ0LytkQ3lkM0ZFWTVadHNMVTJPemY3eTJOWVl3eG11V215L09ZN2hmeUZWM2VUdVc0T2pIMHpTc0RCSFc5K1JcXG4yWER6Yy9FUzI4bU1HcW0yOE9UWUQzaE0zRmVqTVBKcWprRk5aanZON2tRSmxxUENIUU1pZ1dpZ3FPallCTjBwXFxuTHVPMW9QMEpuYXRPRFFHZGR6S2hLU1c3UXdCKzFsdTcwdEZIUUJ0WlE0eGtmMVY3ZE5aTmhGeGtGdDNuNGpFZ1xcbnkrNjlxQ1VKQWdNQkFBRUNnZjhqbDVLU0xML3l1djlzWDRTWmZMUUFXcjdQTzFha3pDNFFsNGY3aStCSUlWaHBcXG50Wm56eE1VLzlLK3g0QWJadGVoejZDMDZVRTZTM1BUeGQ2L01zMXdMTEM5eHdTaURtUEY1dXBMUUJ3VjlVTm11XFxuYmdrcWp4SW9rWUxIWitZN0lsR0MzRFRXR2NLMjdncmtwR3l6UkE2cWk3Q3dpMGJTSVQrbGx4ZXpCalhXUHVLZlxcblJYTzNUSktraUhzQnJ0S2w5dGExRG40MUZjaTdaZXcyYThuRHNUdVUwWHJuWGw0U3lXTThVanhubDl2amdHaTBcXG5XMUlnRSs1TVEvZ1VNV3l2Y0hLT3ZSR3N1MURNZHMwVXVJTHRJSW5IVEdJcHNWRlFqSERmazJFMVZoV2xtVDRCXFxuQmNGYWxDYi8xOUhicXlWV21LNjg5VHBJTXpKRTlRNVlFOGNRTVlFQ2dZRUE4RU5QMUFma1I1bmtoNWRwWEVITFxcblNZalI0U09XU2lhZjFzbms3d1ZYM0wzN09DZno2cTUwTlZXTTdJMEtFaWtKNER1VlpPRkRhKzJQay9JWE43TWFcXG5tSWJOdEFKK0JYdEJPUDl1U3dqYW9VdGpsaXVXS0pSK3dtdlkweHRnTGRIRXNzbmxlVDdWcFgraFl5elJGQndaXFxudDRsSFdZWGdneFZHckpuTk1TQXlNVWtDZ1lFQXZXOUJMQ0s0L0tTN3M4VWh0N2pkdDErQ0hqQ1ZraC9TL1Awdlxcbk1sU2JlQjJ0RDZoWFY2eU9YUHFaS25iL0tOaUIvbXdWZE4wSVRwK3poU2xyYktxSjNzSzcwSVl2N25NWUQxVlpcXG52Q2UyVFRxc0tVOEtUU0tkUCtWUER3VTFCeldGR2hKU2N1QUpCbEdLRnJyY2NNcktLRldrMUxhYzNObFZOWmtQXFxubmJHV0ZjRUNnWUF5bUdveUkydE9MTGswV0kxR2NWQ0c3cm9MNkR1WTUrTlhEdk1YNW84bkhCYlFMNUd0QlFuUlxcbnhXOUV6VHFtc2wrekNia2ZJbFRaWUpDUXZqVm5kRjhRYWFyZDBueUpXUGhXTVd3ZmZ3RFRZSlhiSk5pZE9SQXNcXG5qeHQ4OFZIaXREN3d5NVY0WCtRTDB3SEFhY3FwcW5VNzhqdkZQVzBYRFo3eGIvNEc3MW5DaVFLQmdIU3dmYUxrXFxuV0xNMy9tL0VkUHFwSTlwN09MbkVENzZOWC9oN05ZRjVZTE5qQkdIcXZyTEJGb2pyelVHOVAzdzNzZ3U1SkpaeVxcbk9WWEZSbDQybjNlMnJXck01Y2lUZ0I4UVFyZmZTWUYvck9weHcrOUdRd0EwM0V5cHdrTnNYN2ZySGV4cmNPSldcXG5ZdmpEYlo2R3lKZXFNMUVaUUluUFcxMG5lemVpNjEybU1OK0JBb0dBS3BxK2ZZWGF5UHV0YnprS092ODhDSzVGXFxuSkp1TWZ3Y2RUa0pGbXd6RUhESUtCcU8yQVErT29KTWRrbW5oWlRmeHgweWR5Rk03WGFjajBFQSt2VEIrSGR0MFxcblJ2RytpdWZwRWRMeVRveTJ6bHI5eUprVmQxVnZzdHNGQkgvbFRORHVXOHB1VUdqVVc2c2lXZHNPMi82Q2dZK2dcXG56c3dIYUVxTytDMnBhVk9ZYWRvPVxcbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cXG5cIixcbiAgXCJjbGllbnRfZW1haWxcIjogXCJkb3dubG9hZC1kaWdpLWNvbmZpZ0B0cGktZHRkLXNlcnZpY2UuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb21cIixcbiAgXCJjbGllbnRfaWRcIjogXCIxMTQ2MDA1NTc3MTYzNTU0MTAzNTZcIixcbiAgXCJhdXRoX3VyaVwiOiBcImh0dHBzOi8vYWNjb3VudHMuZ29vZ2xlLmNvbS9vL29hdXRoMi9hdXRoXCIsXG4gIFwidG9rZW5fdXJpXCI6IFwiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW5cIixcbiAgXCJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmxcIjogXCJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHNcIixcbiAgXCJjbGllbnRfeDUwOV9jZXJ0X3VybFwiOiBcImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL3JvYm90L3YxL21ldGFkYXRhL3g1MDkvZG93bmxvYWQtZGlnaS1jb25maWclNDB0cGktZHRkLXNlcnZpY2UuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb21cIixcbiAgXCJ1bml2ZXJzZV9kb21haW5cIjogXCJnb29nbGVhcGlzLmNvbVwiXG59IiwiYXV0aCI6IlgycHpiMjVmYTJWNU9uc0tJQ0FpZEhsd1pTSTZJQ0p6WlhKMmFXTmxYMkZqWTI5MWJuUWlMQW9nSUNKd2NtOXFaV04wWDJsa0lqb2dJblJ3YVMxa2RHUXRjMlZ5ZG1salpTSXNDaUFnSW5CeWFYWmhkR1ZmYTJWNVgybGtJam9nSWpKak5UUmxNVFF3TURaak1tTmpNemswWm1ObVl6Qm1ZV1kzWkRKak1UQTVORGs1WTJFMk1UTWlMQW9nSUNKd2NtbDJZWFJsWDJ0bGVTSTZJQ0l0TFMwdExVSkZSMGxPSUZCU1NWWkJWRVVnUzBWWkxTMHRMUzFjYmsxSlNVVjFaMGxDUVVSQlRrSm5hM0ZvYTJsSE9YY3dRa0ZSUlVaQlFWTkRRa3RSZDJkblUyZEJaMFZCUVc5SlFrRlJRM2g1YUhoS2NXcEJVbGx0U1hOY2JsUTJSREI1VmtWa1FXNXpla1ptWm1sMFdFUjZibmhOWVc1TFVEZERWMEptVEd0aE9VdHNTMFJCVHpSR1ZGVm9UMjVEVUVsSlVqRnNSMjFZVjFwQk5FVmNibTVtTjFkUGFqQndXSE14YVZkdGVUaHRRMDVWYUhoNmRIaGliMjVLWlcxRFFtaFNNVEkzYVc5RFJtRnROalpzUlRKWmFsaHljWEpSTVUxaWFIVXhjRWRjYmpKMEx5dGtRM2xrTTBaRldUVmFkSE5NVlRKUGVtWTNlVEpPV1ZsM2VHMTFWMjE1TDA5Wk4yaG1lVVpXTTJWVWRWYzBUMnBJTUhwVGMwUkNTRmM1SzFKY2JqSllSSHBqTDBWVE1qaHRUVWR4YlRJNFQxUlpSRE5vVFROR1pXcE5VRXB4YW10R1RscHFkazQzYTFGS2JIRlFRMGhSVFdsblYybG5jVTlxV1VKT01IQmNia3gxVHpGdlVEQktibUYwVDBSUlIyUmtla3RvUzFOWE4xRjNRaXN4YkhVM01IUkdTRkZDZEZwUk5IaHJaakZXTjJST1drNW9SbmhyUm5RemJqUnFSV2RjYm5rck5qbHhRMVZLUVdkTlFrRkJSVU5uWmpocWJEVkxVMHhNTDNsMWRqbHpXRFJUV21aTVVVRlhjamRRVHpGaGEzcERORkZzTkdZM2FTdENTVWxXYUhCY2JuUmFibnA0VFZVdk9Vc3JlRFJCWWxwMFpXaDZOa013TmxWRk5sTXpVRlI0WkRZdlRYTXhkMHhNUXpsNGQxTnBSRzFRUmpWMWNFeFJRbmRXT1ZWT2JYVmNibUpuYTNGcWVFbHZhMWxNU0ZvcldUZEpiRWRETTBSVVYwZGpTekkzWjNKcmNFZDVlbEpCTm5GcE4wTjNhVEJpVTBsVUsyeHNlR1Y2UW1wWVYxQjFTMlpjYmxKWVR6TlVTa3RyYVVoelFuSjBTMnc1ZEdFeFJHNDBNVVpqYVRkYVpYY3lZVGh1UkhOVWRWVXdXSEp1V0d3MFUzbFhUVGhWYW5odWJEbDJhbWRIYVRCY2JsY3hTV2RGS3pWTlVTOW5WVTFYZVhaalNFdFBkbEpIYzNVeFJFMWtjekJWZFVsTWRFbEpia2hVUjBsd2MxWkdVV3BJUkdack1rVXhWbWhYYkcxVU5FSmNia0pqUm1Gc1EySXZNVGxJWW5GNVZsZHRTelk0T1ZSd1NVMTZTa1U1VVRWWlJUaGpVVTFaUlVObldVVkJPRVZPVURGQlptdFNOVzVyYURWa2NGaEZTRXhjYmxOWmFsSTBVMDlYVTJsaFpqRnpibXMzZDFaWU0wd3pOMDlEWm5vMmNUVXdUbFpYVFRkSk1FdEZhV3RLTkVSMVZscFBSa1JoS3pKUWF5OUpXRTQzVFdGY2JtMUpZazUwUVVvclFsaDBRazlRT1hWVGQycGhiMVYwYW14cGRWZExTbElyZDIxMldUQjRkR2RNWkVoRmMzTnViR1ZVTjFad1dDdG9XWGw2VWtaQ2QxcGNiblEwYkVoWFdWaG5aM2hXUjNKS2JrNU5VMEY1VFZWclEyZFpSVUYyVnpsQ1RFTkxOQzlMVXpkek9GVm9kRGRxWkhReEswTklha05XYTJndlV5OVFNSFpjYmsxc1UySmxRakowUkRab1dGWTJlVTlZVUhGYVMyNWlMMHRPYVVJdmJYZFdaRTR3U1ZSd0szcG9VMnh5WWt0eFNqTnpTemN3U1ZsMk4yNU5XVVF4VmxwY2JuWkRaVEpVVkhGelMxVTRTMVJUUzJSUUsxWlFSSGRWTVVKNlYwWkhhRXBUWTNWQlNrSnNSMHRHY25KalkwMXlTMHRHVjJzeFRHRmpNMDVzVms1YWExQmNibTVpUjFkR1kwVkRaMWxCZVcxSGIzbEpNblJQVEV4ck1GZEpNVWRqVmtOSE4zSnZURFpFZFZrMUswNVlSSFpOV0RWdk9HNUlRbUpSVERWSGRFSlJibEpjYm5oWE9VVjZWSEZ0YzJ3cmVrTmlhMlpKYkZSYVdVcERVWFpxVm01a1JqaFJZV0Z5WkRCdWVVcFhVR2hYVFZkM1ptWjNSRlJaU2xoaVNrNXBaRTlTUVhOY2JtcDRkRGc0VmtocGRFUTNkM2sxVmpSWUsxRk1NSGRJUVdGamNYQnhibFUzT0dwMlJsQlhNRmhFV2pkNFlpODBSemN4YmtOcFVVdENaMGhUZDJaaFRHdGNibGRNVFRNdmJTOUZaRkJ4Y0VrNWNEZFBURzVGUkRjMlRsZ3ZhRGRPV1VZMVdVeE9ha0pIU0hGMmNreENSbTlxY25wVlJ6bFFNM2N6YzJkMU5VcEtXbmxjYms5V1dFWlNiRFF5YmpObE1uSlhjazAxWTJsVVowSTRVVkZ5Wm1aVFdVWXZjazl3ZUhjck9VZFJkMEV3TTBWNWNIZHJUbk5ZTjJaeVNHVjRjbU5QU2xkY2JsbDJha1JpV2paSGVVcGxjVTB4UlZwUlNXNVFWekV3Ym1WNlpXazJNVEp0VFU0clFrRnZSMEZMY0hFclpsbFlZWGxRZFhSaWVtdExUM1k0T0VOTE5VWmNia3BLZFUxbWQyTmtWR3RLUm0xM2VrVklSRWxMUW5GUE1rRlJLMDl2U2sxa2EyMXVhRnBVWm5oNE1IbGtlVVpOTjFoaFkyb3dSVUVyZGxSQ0swaGtkREJjYmxKMlJ5dHBkV1p3UldSTWVWUnZlVEo2YkhJNWVVcHJWbVF4Vm5aemRITkdRa2d2YkZST1JIVlhPSEIxVlVkcVZWYzJjMmxYWkhOUE1pODJRMmRaSzJkY2JucHpkMGhoUlhGUEswTXljR0ZXVDFsaFpHODlYRzR0TFMwdExVVk9SQ0JRVWtsV1FWUkZJRXRGV1MwdExTMHRYRzRpTEFvZ0lDSmpiR2xsYm5SZlpXMWhhV3dpT2lBaVpHOTNibXh2WVdRdFpHbG5hUzFqYjI1bWFXZEFkSEJwTFdSMFpDMXpaWEoyYVdObExtbGhiUzVuYzJWeWRtbGpaV0ZqWTI5MWJuUXVZMjl0SWl3S0lDQWlZMnhwWlc1MFgybGtJam9nSWpFeE5EWXdNRFUxTnpjeE5qTTFOVFF4TURNMU5pSXNDaUFnSW1GMWRHaGZkWEpwSWpvZ0ltaDBkSEJ6T2k4dllXTmpiM1Z1ZEhNdVoyOXZaMnhsTG1OdmJTOXZMMjloZFhSb01pOWhkWFJvSWl3S0lDQWlkRzlyWlc1ZmRYSnBJam9nSW1oMGRIQnpPaTh2YjJGMWRHZ3lMbWR2YjJkc1pXRndhWE11WTI5dEwzUnZhMlZ1SWl3S0lDQWlZWFYwYUY5d2NtOTJhV1JsY2w5NE5UQTVYMk5sY25SZmRYSnNJam9nSW1oMGRIQnpPaTh2ZDNkM0xtZHZiMmRzWldGd2FYTXVZMjl0TDI5aGRYUm9NaTkyTVM5alpYSjBjeUlzQ2lBZ0ltTnNhV1Z1ZEY5NE5UQTVYMk5sY25SZmRYSnNJam9nSW1oMGRIQnpPaTh2ZDNkM0xtZHZiMmRzWldGd2FYTXVZMjl0TDNKdlltOTBMM1l4TDIxbGRHRmtZWFJoTDNnMU1Ea3ZaRzkzYm14dllXUXRaR2xuYVMxamIyNW1hV2NsTkRCMGNHa3RaSFJrTFhObGNuWnBZMlV1YVdGdExtZHpaWEoyYVdObFlXTmpiM1Z1ZEM1amIyMGlMQW9nSUNKMWJtbDJaWEp6WlY5a2IyMWhhVzRpT2lBaVoyOXZaMnhsWVhCcGN5NWpiMjBpQ24wPSJ9fX0=
+kind: Secret
+metadata:
+  name: pull-images-secret
+  namespace: $NAMESPACE
+type: kubernetes.io/dockerconfigjson
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: properties-mounts
+  namespace: $NAMESPACE
+data:
+  application-gcp.properties: |
+    ########################################
+    #                                      #
+    #   Different connection environments  #
+    #   ex:  RDB.url / ES.url / MiMA       #
+    #                                      #
+    ########################################
+
+
+    #################################
+    #                               #
+    #        Tomcat Server          #
+    #                               #
+    #################################
+    #server.servlet.context-path=/dgrv4
+
+    #################################
+    #                               #
+    #      spring.datasource        #
+    #                               #
+    #################################
+    ## //Open it when you need to monitor all SQL syntax
+    spring.datasource.driverClassName=org.h2.Driver
+    spring.datasource.url=jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1
+    spring.datasource.username=sa
+    spring.datasource.password=
+    spring.datasource.hikari.maximum-pool-size=20
+    spring.datasource.sql-script-encoding=UTF-8
+    #[always][embedded][never]
+    spring.datasource.initialization-mode=always
+    spring.h2.console.enabled=true
+
+
+    #####################################
+    #                                   #
+    #  Set ENC encryption private key   #
+    #                                   #
+    #####################################
+    jasypt.encryptor.privateKeyFormat=PEM
+    jasypt.encryptor.privateKeyLocation=file:keys/enc.pem
+
+
+    #################################
+    #                               #
+    #          spring.jpa           #
+    #                               #
+    #################################
+    spring.jpa.database=h2
+    spring.jpa.hibernate.ddl-auto=none
+    spring.jpa.hibernate.use-new-id-generator-mappings=true
+    spring.jpa.show-sql=false
+    spring.jpa.properties.hibernate.format_sql=false
+
+
+    #看SQL的參數用,在logback.xml的ch.qos.logback.classic.filter.ThresholdFilter也要改成TRACE,TPILogger也要打開TRACE
+    #logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+
+    ## //Print [HikariPool] properties info at startup
+    logging.level.com.zaxxer.hikari=debug
+
+    #################################
+    #                               #
+    #  Https Certificate Settings   #
+    #                               #
+    #################################
+    # local run Mock Test: please set as false
+    #server.ssl.enabled=false
+    server.ssl.enabled=true
+    server.ssl.key-store=keys/dgr-core.jks
+    server.ssl.key-store-password=ENC(ROGqEfZe0fm8UKdny947/5W1wQVnNtdmBrNF9nzA0iy0g+FiGI30ZdvUvUw5HgoIgZLc4uZCOVJSTeo/AvSJZ/bqeO2ahvBf28NGPmZuYR7UsjkucghfPXbIbLVuzDEoJFkXRo+Ojm6izp69hRm2gg+EaQS0ycM2YSMzs2IluGnoS5UsVrOdPjgXd3QcfyIAypqZ5egKFeTAuuF/2RHENfNox5JUKlba06MA8/7ao83L/tgod34Q0Me50Deym9FmA5ezCVFs37++0NdcOnbSLfMQxSYUiUw1TWMCKlPlE1CqSSIozi5dk5OMSA4vCoIhXx713CWqy9RBW2TJNmY6KQ==)
+    server.ssl.keyStoreType=jks
+    server.ssl.keyAlias=dgr-core
+
+    ####################################
+    #                                  #
+    # digiRunner Token Keypair Setting #
+    #                                  #
+    ####################################
+    ## //windows(\\) & linux(/) path direction is different
+    digiRunner.token.key-store.path=keys
+    digiRunner.token.key-store.name=tsmp-core-token.jks
+    digiRunner.token.key-store-password=ENC(DyXYovLuCDy1SSnR2KJzBhb/T9XQSijCtlVcrrdWwPcWX0qNWXN9qdQLZ442A/bA9gLswYs/r2/ExyxOp0eRv7fw0NdiGhSjjI8bWG2n2yRZwn41snaT74HJr9k2Z93bL7hJRlhELQavpqe8Ap0AROIPar41TjqffsZQ7tpvXzWV5K4BndnEqTZUkze8gFAIyyYsoD0z7vMpO11VbLDBtohAlHTPvOapii8zqQiNfLUPHtfgHxrUca3WfSYmyO4WBBOqoBqDO4vunFK5xCV2ZgFU5T6CTavoBSjobXaZ0ssgc4l8DrUh5oPu7d3eMZrmLGZ3o8pjgf5uRtThUt36lg==)
+    digiRunner.token.keyAlias=tsmp-core-token
+    digiRunner.token.keyStoreType=JKS
+
+
+    #  Be sure to choose one to fill in, otherwise access to all functions will be denied
+    #onlyAC / onlyGTW / Both
+    digiRunner.gtw.mode=Both
+
+
+  application.properties: |
+    #################################
+    #                               #
+    #       spring.profiles         #
+    #                               #
+    #################################
+    server.http2.enabled=true
+    spring.profiles.active=local
+    server.port=8080
+    server.tomcat.max-connections=81920
+    server.tomcat.accept-count=10000
+    server.connector.keep-alive-timeout=61000
+    server.tomcat.threads.max=1200
+    server.tomcat.threads.min-spare=150
+    server.servlet.session.timeout=60s
+
+
+    #################################
+    #                               #
+    #         spring.main           #
+    #                               #
+    #################################
+    #spring.main.allow-bean-definition-overriding=true
+    spring.main.allow-circular-references=true
+
+
+    #################################
+    #                               #
+    #          springdoc            #
+    #                               #
+    #################################
+    springdoc.api-docs.path=/dgrv4/v3/api-docs
+    springdoc.swagger-ui.path=/dgrv4/swagger-ui.html
+
+
+    #################################
+    #                               #
+    #       Service Constant        #
+    #                               #
+    #################################
+    ## //Scheduler flag
+    service.scheduler.appt-job.enable=true
+    ## //Cycle scheduler flag
+    service.scheduler.appt-rjob.enable=true
+    ## //Number of scheduled threads pool
+    service.scheduler.deferrable.thread-pool-size=1
+    ## // Scheduler/Period Scheduler query DB every N minutes (ms)
+    service.job-dispatcher.period.ms=1800000
+    ## //Job Dispatcher query N jobs from DB at one time
+    service.job-dispatcher.number-of-record=5
+
+    #####################################
+    #                                   #
+    #  Mail template language settings  #
+    #                                   #
+    #####################################
+    #(ex: service.mail.installation=zh-TW)
+    #(ex: service.mail.installation=en-US)
+    service.mail.installation=en-US
+
+
+    ###############################
+    #                             #
+    #  Allowed upload file size   #
+    #                             #
+    ###############################
+    spring.servlet.multipart.max-file-size=100MB
+    spring.servlet.multipart.max-request-size=1000MB
+
+    ####################################
+    #                                  #
+    #  API Connection Timeout          #
+    #                                  #
+    ####################################
+    spring.mvc.async.request-timeout=90000
+
+
+    ####################################
+    #                                  #
+    #  Allowed CORS header list        #
+    #                                  #
+    ####################################
+    cors.allow.headers=YYY, Content-Type, Authorization, SignCode, Language, XXX
+
+
+    ####################################
+    #                                  #
+    #  graceful shutdown.       	   #
+    #  you can also configure the      #
+    #  timeout period the application  #
+    #  should wait for the current     #
+    #  request to finish.              #
+    #                                  #
+    ####################################
+    server.shutdown=graceful
+    spring.lifecycle.timeout-per-shutdown-phase=30s
+
+
+    ####################################
+    #                                  #
+    #  Instance ID, Must, allow repeat #
+    #                                  #
+    ####################################
+    digi.instance.id=dgr
+
+  logback.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration scan="true" scanPeriod="60 seconds">
+
+            <property name="Charset" value="UTF-8" />
+            <property name="FileName" value="dgr" />
+            <property name="LogsLocation" value="logs" />
+            <property name="Format1" value="%d{HH:mm:ss.SSS} %-5level [%thread][%logger{0}.%M\\(%F:%L\\)] %msg%n" />
+
+            <!-- appender -->
+            <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+                    <encoder>
+                            <pattern>${Format1}</pattern>
+                    </encoder>
+                    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>DEBUG</level>
+            </filter>
+            </appender>
+            <appender name="fileout" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.log</fileNamePattern>
+                            <maxHistory>30</maxHistory>
+                            <maxFileSize>10MB</maxFileSize>
+                    </rollingPolicy>
+                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                            <pattern>${Format1}</pattern>
+                            <charset>${Charset}</charset>
+                    </encoder>
+                    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>DEBUG</level>
+            </filter>
+            </appender>
+            <appender name="fileerr" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.err.log</fileNamePattern>
+                            <maxHistory>30</maxHistory>
+                            <maxFileSize>10MB</maxFileSize>
+                    </rollingPolicy>
+                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                            <pattern>${Format1}</pattern>
+                            <charset>${Charset}</charset>
+                    </encoder>
+                    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>ERROR</level>
+            </filter>
+            </appender>
+
+            <appender name="fileloguuid" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.loguuid.log</fileNamePattern>
+                            <maxHistory>30</maxHistory>
+                            <maxFileSize>10MB</maxFileSize>
+                    </rollingPolicy>
+                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                            <pattern>${Format1}</pattern>
+                            <charset>${Charset}</charset>
+                    </encoder>
+                <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+                  <evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
+                    <expression>return message.contains("LOGUUID");</expression>
+                  </evaluator>
+                  <OnMismatch>DENY</OnMismatch>
+                  <OnMatch>ACCEPT</OnMatch>
+                </filter>
+            </appender>
+
+            <appender name="file_sys_info" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.file_sys_info.log</fileNamePattern>
+                            <maxHistory>30</maxHistory>
+                            <maxFileSize>10MB</maxFileSize>
+                    </rollingPolicy>
+                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                            <pattern>${Format1}</pattern>
+                            <charset>${Charset}</charset>
+                    </encoder>
+                <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+                  <evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
+                    <expression>
+                    boolean logStartFlag = message.contains("Starting DgrApplication using Java")
+                    || message.contains("Running with Spring Boot")
+                    || message.contains("profile is active");
+                            if (logStartFlag) {
+                                    tpi.dgrv4.gateway.keeper.TPILogger.logStartingMsg.add(message);
+                            }
+
+                    return
+                    logStartFlag
+                    || message.contains("dgr-keeper server [go LIVE]")
+                    || message.contains("This Client Connect to dgr-keeper server")
+                    || message.contains("dgRv4 web server info")
+                    || false;
+                    </expression>
+                  </evaluator>
+                  <OnMismatch>DENY</OnMismatch>
+                  <OnMatch>ACCEPT</OnMatch>
+                </filter>
+            </appender>
+
+            <!-- logger -->
+            <root level="TRACE">
+            </root>
+
+
+
+            <!-- Default: Product Release
+            <logger name="tpi.dgrv4" level="INFO" additivity="false">
+                            <appender-ref ref="file_sys_info" />
+            </logger>
+            <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
+                    <appender-ref ref="fileout" />
+            </logger>
+            <logger name="tpi.dgrv4" level="TRACE" additivity="false">
+                    <appender-ref ref="fileout" />
+            </logger>
+            -->
+
+
+            <logger name="tpi.dgrv4" level="ERROR" additivity="false">
+                            <appender-ref ref="fileerr" />
+            </logger>
+            <logger name="tpi.dgrv4" level="INFO" additivity="false">
+                            <appender-ref ref="file_sys_info" />
+            </logger>
+            <logger name="org.springframework.boot.web.embedded.tomcat" level="INFO" additivity="false">
+                    <appender-ref ref="stdout" />
+                    <appender-ref ref="fileout" />
+            </logger>
+            <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
+                    <appender-ref ref="stdout" />
+                    <appender-ref ref="fileout" />
+            </logger>
+            <logger name="tpi.dgrv4" level="INFO" additivity="false">
+                    <appender-ref ref="stdout" />
+            </logger>
+            <logger name="tpi.dgrv4" level="INFO" additivity="false">
+                    <appender-ref ref="fileloguuid" />
+            </logger>
+                    <logger name="tpi.dgrv4" level="TRACE" additivity="false">
+                    <appender-ref ref="fileout" />
+            </logger>
+
+
+
+
+
+
+    </configuration>
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ubbagent-config
+  namespace: $NAMESPACE
+data:
+  config.yaml: |
+    identities:
+    - name: gcp
+      gcp:
+        encodedServiceAccountKey: $AGENT_ENCODED_KEY
+
+    metrics:
+    - name: digirunner_HA_High_Availability
+      type: int
+      endpoints:
+      - name: on_disk
+      - name: servicecontrol
+      passthrough: {}
+
+    endpoints:
+    - name: on_disk
+      disk:
+        reportDir: /var/lib/ubbagent/reports
+        expireSeconds: 3600
+    - name: servicecontrol
+      servicecontrol:
+        identity: gcp
+        serviceName: digirunner.tpisoftware.appspot.com
+        consumerId: $AGENT_CONSUMER_ID
+
+    sources:
+    - name: instance_time_heartbeat
+      heartbeat:
+        metric: digirunner_HA_High_Availability
+        intervalSeconds: 3600
+        value:
+          int64Value: 1

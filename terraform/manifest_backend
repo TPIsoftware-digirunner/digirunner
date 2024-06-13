@@ -1,0 +1,7 @@
+terraform {
+  backend "gcs" {
+    bucket  = "tf-state-digi-$TIME"
+    prefix  = "terraform/state"
+  }
+}
+

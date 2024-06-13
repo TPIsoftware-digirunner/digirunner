@@ -1,0 +1,28 @@
+apiVersion: app.k8s.io/v1beta1
+kind: Application
+metadata:
+  name: "$NAME"
+  namespace: "$NAMESPACE"
+  annotations:
+    marketplace.cloud.google.com/deploy-info: '{"partner_id": "0014M00001xkHxaQAE", "product_id": "digirunner", "partner_name": "TPIsoftware"}'
+  labels:
+    app.kubernetes.io/name: "$NAME"
+spec:
+  descriptor:
+    type: digirunner
+    version: '4.2.5'
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "$NAME"
+  componentKinds:
+  # The group is determined from the apiVersion: $GROUP_NAME/$VERSION
+  - group: apps
+    kind: Deployment
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: secret
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: BackendConfig

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudsql-proxy
+  namespace: $NAMESPACE
+  labels:
+    app: cloudsql-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudsql-proxy
+  template:
+    metadata:
+      labels:
+        app: cloudsql-proxy
+    spec:
+      serviceAccountName: mysql-ksa
+      containers:
+        - name: cloudsql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--credentials-file=/etc/gcp/gsa-key.json"
+            - "--structured-logs"
+            - "--port=5432"
+            - "$PROJECT_ID:$REGION:$DB_INSTANCE?address=0.0.0.0"
+          volumeMounts:
+            - name: gsa-mount
+              mountPath: /etc/gcp
+              readOnly: true
+          ports:
+            - containerPort: 5432
+          securityContext:
+            runAsNonRoot: true
+      volumes:
+      - name: gsa-mount
+        secret:
+          secretName: gsa-key
+          items:
+          - key: gsa-key.json
+            path: gsa-key.json

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: digi
+  namespace: $NAMESPACE
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"digi":"digi-backendconfig"}}'
+    cloud.google.com/app-protocols: '{"digi":"HTTPS"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  ports:
+    - name: digi
+      port: 8442
+      targetPort: 8442
+  selector:
+    app: digi
+  type: NodePort

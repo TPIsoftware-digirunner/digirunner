@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: composer-svc
+  namespace: $NAMESPACE
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"composer":"composer-backendconfig"}}'
+    cloud.google.com/app-protocols: '{"composer":"HTTPS"}'
+spec:
+  ports:
+  - name: composer
+    port: 8440
+    protocol: TCP
+    targetPort: 8440
+  selector:
+    app: digi
