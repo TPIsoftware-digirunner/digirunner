@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gcloud-sdk
+  namespace: $NAMESPACE
+spec:
+  containers:
+  - name: init-pd
+    image: google/cloud-sdk:latest
+    command: ['/bin/bash','-c','while : ; do sleep 10;  done']
+    workingDir: /root/
+    volumeMounts:
+      - name: nfs-pd-pvc
+        mountPath: /exports
+  volumes:
+    - name: nfs-pd-pvc
+      gcePersistentDisk:
+        pdName: digi-config
+        fsType: ext4
+

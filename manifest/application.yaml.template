@@ -4,13 +4,13 @@ metadata:
   name: "$NAME"
   namespace: "$NAMESPACE"
   annotations:
-    marketplace.cloud.google.com/deploy-info: '{"partner_id": "partner", "product_id": "digirunner", "partner_name": "TPIsoftware"}'
+    marketplace.cloud.google.com/deploy-info: '{"partner_id": "partner", "product_id": "digirunner", "partner_name": "TPIsoftware"}'  
   labels:
     app.kubernetes.io/name: "$NAME"
 spec:
   descriptor:
     type: digirunner
-    version: '4.2'
+    version: '4.2.4'
   selector:
     matchLabels:
       app.kubernetes.io/name: "$NAME"
@@ -20,3 +20,9 @@ spec:
     kind: Deployment
   - group: ''
     kind: Service
+  - group: ''
+    kind: secret
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: BackendConfig

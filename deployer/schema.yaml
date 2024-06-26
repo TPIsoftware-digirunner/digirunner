@@ -9,15 +9,15 @@ x-google-marketplace:
       - Feature
     recommended: false
   images:
-    '':
+    digirunner:
       properties:
         imageDigiRepo:
-          default: gcr.io/tpisoftware-digirunner-public/digirunner/deployer:4.2.4
           type: FULL
+        imageDigiTag:
+          type: TAG
     composer:
       properties:
         imageComposerRepo:
-          default: gcr.io/tpisoftware-digirunner-public/composer/deployer:4.2.2
           type: FULL
 properties:
   NAME:
