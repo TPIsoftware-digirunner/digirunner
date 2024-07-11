@@ -7,12 +7,25 @@
 
 Install this digiRunner app to a Google Kubernetes Engine cluster using Google Cloud Marketplace. Follow the on-screen instructions.
 
+## Prerequisites
+1. You will need a PostgreSQL SQL database. You can either create your own DB and set up a connection, or you can follow the steps below to create one in GCP Cloud SQL.
+
+```
+
+# Replace the fields YOUR-INSTANCE-NAME, YOUR-PASSWORD, and ZONE.
+# Create sql instances Example:
+gcloud sql instances create [YOUR-INSTANCE-NAME] --database-version=POSTGRES_15 --cpu=2 --memory=3.75GiB --zone=[ZONE] --root-password=[YOUR-PASSWORD] --availability-type=zonal --edition=enterprise
+
+# Create a database with the name "digirunner":
+gcloud sql databases create digirunner --instance=[YOUR-INSTANCE-NAME] 
+```
+
+2. You will need a domain name. digiRunner uses encrypted connections, so you can follow the steps below to set up an SSL certificate.
 ---
 
 # Command line instructions
 
-## Prerequisites
-Set up command-line tools
+## Set up command-line tools
 
 You'll need the following tools in your development environment. If you are using Cloud Shell, then `gcloud`, `kubectl`, `terraform` are installed in your environment by default.
 
@@ -204,7 +217,7 @@ Please execute this shell script:
 sh -x init_script.sh
 ```
 
-### Deploy NFS, it will store digirunner configuration file
+### Deploy NFS, it will store digiRunner configuration file
 Please hold on a moment until the pod is ready, you can check the pod status by executing the command `kubectl get pod`
 ```
 kubectl apply -f ./yaml/nfs_server_pv_pvc.yaml
@@ -237,6 +250,11 @@ gcloud iam service-accounts add-iam-policy-binding $PROJECT_NUM-compute@develope
 ```
 
 ### Deploy digiRunner software
+```
+# SSL certificates are required before deploying an ingress. Run the following command to create one for your domain.
+
+gcloud beta compute ssl-certificates create digi-cert --project=$PROJECT_ID --global --domains=$DIGI_DOMAIN
+```
 ```
 kubectl apply -f ./yaml/composer_svc.yaml
 kubectl apply -f ./yaml/composer_backendconfig.yaml
@@ -294,6 +312,21 @@ gcloud compute ssh digi-init-instance --zone=$ZONE --project=$PROJECT_ID --comma
 "export PGPASSWORD=$DB_PASSWORD; \ 
 psql -h $DB_IP -p 5432 -U postgres -d digirunner -f dgRv4-postgres-ddl-i18n.sql; \
 psql -h $DB_IP -p 5432 -U postgres -d digirunner -f init_data.sql;"
+```
+
+### Modify the configMap to establish connections for the specified settings with the PostgreSQL instance.
+kubectl -n digirunner-deployer edit configmap properties-mounts
+```
+# example:
+spring.datasource.driverClassName=org.postgresqlDriver
+spring.datasource.url=jdbc:postgresql:/cloudsql-proxy:5432/digirunner
+spring.datasource.username=postgres
+spring.datasource.password=[YOUR-DB-PASSWORD]
+spring.jpa.database=PostgreSQL
+```
+### After editing the configMap, execute the following command to connect the DB connection to the Cloud SQL instance.
+```
+kubectl rollout restart deployment digirunner -n digirunner-deployer
 ```
 ### Delete the initialization VM instances once database initialization is complete.
 ```
