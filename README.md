@@ -230,10 +230,13 @@ kubectl scale deployment nfs-server --replicas=1
 ```
 
 ### Deploy the Cloud SQL proxy pod, a sidecar service used by digiRunner for database connectivity.
+
+ - The Cloud SQL Auth Proxy provides secure access to your Cloud SQL instance without the need for authorized networks or for configuring SSL. By using the Cloud SQL Auth Proxy, you can connect to your Cloud SQL instance securely.
+
+- If you have your own PostgreSQL database, you need to edit the connection information in line 27 of the `cloudsql_proxy_mariadb.yaml` file.
 ```
 kubectl apply -f ./yaml/cloudsql_proxy_configMap.yaml
 kubectl apply -f ./yaml/cloudsql_proxy_svc.yaml
-# kubectl apply -f ./tf-digi-repo/yaml/cloudsql_proxy_ksa.yaml
 kubectl apply -f ./yaml/cloudsql_proxy_mariadb.yaml
 ```
 
@@ -276,12 +279,12 @@ kubectl apply -f ./yaml/keeper.yaml
 ```
 
 # Initialize the database and insert the schema.
-###  install psql
+###  Install psql
 ```
 gcloud compute ssh digi-init-instance --zone=$ZONE --project=$PROJECT_ID --command "sudo apt install -y postgresql postgresql-contrib jq"
 BORDER_IP=`gcloud compute ssh digi-init-instance --zone=$ZONE --project=$PROJECT_ID --command "curl -s ipinfo.io | jq -r '.ip'"`
 ```
-### set up authorized networks
+### Set up authorized networks
 ```
 gcloud sql instances patch digi-postgres --authorized-networks=$BORDER_IP -q
 ```
@@ -315,7 +318,7 @@ psql -h $DB_IP -p 5432 -U postgres -d digirunner -f init_data.sql;"
 ```
 
 ### Modify the configMap to establish connections for the specified settings with the PostgreSQL instance.
-kubectl -n digirunner-deployer edit configmap properties-mounts
+`kubectl -n digirunner-deployer edit configmap properties-mounts`
 ```
 # example:
 spring.datasource.driverClassName=org.postgresqlDriver
