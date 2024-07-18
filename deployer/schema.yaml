@@ -38,6 +38,10 @@ properties:
   REGION:
     type: string
     default: asia-east1
+  reportingSecret:
+    type: string
+    x-google-marketplace:
+      type: REPORTING_SECRET
 required:
 - NAME
 - NAMESPACE
