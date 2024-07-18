@@ -19,6 +19,10 @@ x-google-marketplace:
       properties:
         imageComposerRepo:
           type: FULL
+    ubbagent:
+      properties:
+        imageUbbagent:
+          type: FULL
 properties:
   NAME:
     type: string
@@ -48,3 +52,4 @@ required:
 - PROJECT_NUM
 - PROJECT_ID
 - REGION
+- reportingSecret

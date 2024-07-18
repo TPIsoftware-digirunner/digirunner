@@ -7,11 +7,10 @@
 
 Install this digiRunner app to a Google Kubernetes Engine cluster using Google Cloud Marketplace. Follow the on-screen instructions.
 
-## Prerequisites
-1. You will need a PostgreSQL SQL database. You can either create your own DB and set up a connection, or you can follow the steps below to create one in GCP Cloud SQL.
+# Prerequisites
+## 1. You will need a PostgreSQL SQL database. You can either create your own DB and set up a connection, or you can follow the steps below to create one in GCP Cloud SQL.
 
 ```
-
 # Replace the fields YOUR-INSTANCE-NAME, YOUR-PASSWORD, and ZONE.
 # Create sql instances Example:
 gcloud sql instances create [YOUR-INSTANCE-NAME] --database-version=POSTGRES_15 --cpu=2 --memory=3.75GiB --zone=[ZONE] --root-password=[YOUR-PASSWORD] --availability-type=zonal --edition=enterprise
@@ -20,7 +19,18 @@ gcloud sql instances create [YOUR-INSTANCE-NAME] --database-version=POSTGRES_15 
 gcloud sql databases create digirunner --instance=[YOUR-INSTANCE-NAME] 
 ```
 
-2. You will need a domain name. digiRunner uses encrypted connections, so you can follow the steps below to set up an SSL certificate.
+## 2. You will need a domain name. digiRunner uses encrypted connections, so you can follow the steps below to set up an SSL certificate.
+
+## 3. Install the Application resource definition
+
+An Application resource is a collection of individual Kubernetes components, such as Services, Deployments, and so on, that you can manage as a group.
+
+To set up your cluster to understand Application resources, run the following command:
+```
+kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/master/crd/app-crd.yaml"
+```
+You need to run this command once.
+
 ---
 
 # Command line instructions
