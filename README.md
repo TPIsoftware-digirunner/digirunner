@@ -1,14 +1,17 @@
 # Architecture
-![Architecture diagram](resources/digirunner-architecture.png)
+![Architecture diagram](resources/digiR_Architecture.png)
 
 # Installation
-## It is recommended to use cloud shell for installation
-### Quick install with Google Cloud Marketplace
+### It is recommended to use cloud shell for installation
+
+---
+
+# Quick install with Google Cloud Marketplace
 
 Install this digiRunner app to a Google Kubernetes Engine cluster using Google Cloud Marketplace. Follow the on-screen instructions.
 
 # Prerequisites
-## 1. You will need a PostgreSQL SQL database. You can either create your own DB and set up a connection, or you can follow the steps below to create one in GCP Cloud SQL.
+### 1. You will need a `PostgreSQL` database. You can either create your own DB and set up a connection, or you can follow the steps below to create one in GCP Cloud SQL.
 
 ```
 # Replace the fields YOUR-INSTANCE-NAME, YOUR-PASSWORD, and ZONE.
@@ -19,9 +22,9 @@ gcloud sql instances create [YOUR-INSTANCE-NAME] --database-version=POSTGRES_15 
 gcloud sql databases create digirunner --instance=[YOUR-INSTANCE-NAME] 
 ```
 
-## 2. You will need a domain name. digiRunner uses encrypted connections, so you can follow the steps below to set up an SSL certificate.
+### 2. You will need a `Domain Name`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`.
 
-## 3. Install the Application resource definition
+### 3. Install the Application resource definition
 
 An Application resource is a collection of individual Kubernetes components, such as Services, Deployments, and so on, that you can manage as a group.
 
@@ -67,6 +70,7 @@ export OPERATOR=`gcloud config get-value account`
 ```
 
 ---
+# If you do not have `GKE` and `Database`, you can follow these steps to create them using Terraform:
 ### Create service account for terraform
 ```
 gcloud iam service-accounts create tf-digi --display-name "tf-digi"
@@ -202,7 +206,9 @@ store gsa-key.json to GKE secret (is used by containers to connect to Cloud SQL)
 ```
 kubectl create secret generic gsa-key --from-file=./key/gsa-key.json
 ```
-
+## If you do have database [skip to this step](#sql-schema).
+## Optional: 
+If you don't have an environment to initialize your `Cloud SQL` instance, you can create VM instances to perform the initialization.
 ### Create a initialize VM instances
 If necessary, you can modify ZONE
 ```
@@ -298,6 +304,7 @@ BORDER_IP=`gcloud compute ssh digi-init-instance --zone=$ZONE --project=$PROJECT
 ```
 gcloud sql instances patch digi-postgres --authorized-networks=$BORDER_IP -q
 ```
+# SQL schema
 ### Download the sql schema
 ```
 curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token)" -o "init_data.sql" \
