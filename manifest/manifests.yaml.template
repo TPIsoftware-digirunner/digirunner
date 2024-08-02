@@ -611,7 +611,7 @@ data:
 
     # The agent is able to automatically send instance time usage
     # reports, configured in the "source" section.
-    - name: instance_time
+    - name: digirunner_HA_High_Availability
       type: int
       endpoints:
       - name: on_disk
@@ -666,7 +666,7 @@ data:
     sources:
     - name: instance_time_heartbeat
       heartbeat:
-        metric: instance_time
-        intervalSeconds: 60
+        metric: digirunner_HA_High_Availability
+        intervalSeconds: 3600
         value:
-          int64Value: 60
+          int64Value: 1
