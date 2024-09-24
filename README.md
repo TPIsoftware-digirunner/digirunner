@@ -53,7 +53,7 @@ gcloud sql instances create $DB_INSTANCE --database-version=POSTGRES_15 --cpu=2 
 gcloud sql databases create digirunner --instance=$DB_INSTANCE
 ```
 
-### 2. You will need a `Domain Name` and `external IP`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`. [Refer to this step.](###create-certificates)
+### 2. You will need a `Domain Name` and `external IP`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`. [Refer to this step.](#create-certificates)
  - digiRunner needs domain name.
  - Replace the variable of `DIGI_DOMAIN`.
  - Reserve a new static external IP address.
