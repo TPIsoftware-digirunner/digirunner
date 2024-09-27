@@ -28,17 +28,30 @@ spec:
       imagePullSecrets:
         - name: pull-images-secret
       containers:
-      - env:
-        - name: Xmx
-          value: 3g
-        - name: Xms
-          value: 3g
-        - name: active
-          value: gcp
-        - name: TAEASK_KEY
-          value: TsmpAESEncryptionActionSecretKey
-        - name: port
-          value: '8442'
+      - args:
+          - -Xms3g
+          - -Xmx3g
+          - -Dloader.path=lib/,libsext/
+          - -Djava.security.debug=properties
+          - -Djava.security.properties=./config/dgr.java.security
+          - -Dspring.config.location=file:./config/
+          - -DdigiRunner.token.key-store.path=./keys
+          - -Djasypt.encryptor.privateKeyLocation=file:./keys/enc.pem
+          - -Dfile.encoding=UTF-8
+          - -Dlogging.config=file:./config/logback.xml
+          - -Dserver.port=8442
+          - -Dspring.profiles.active=local
+          - org.springframework.boot.loader.launch.PropertiesLauncher
+        command:
+          - java
+          - -cp
+          - app-cp/*
+        env:
+          - name: TZ
+            value: Asia/Taipei
+          - name: TAEASK
+            value: TsmpAESEncryptionActionSecretKey
+        workingDir: /opt/dgr-v4
         image: $imageDigiRepo
         imagePullPolicy: Always
         name: digirunner-main
@@ -207,12 +220,13 @@ data:
     #                                      #
     ########################################
 
-
     #################################
     #                               #
-    #        Tomcat Server          #
+    #        Undertow Server        #
     #                               #
     #################################
+    # Properties setup please refer as below
+    # https://springdoc.cn/spring-boot-undertow/
     #server.servlet.context-path=/dgrv4
 
     #################################
@@ -221,26 +235,30 @@ data:
     #                               #
     #################################
     ## //Open it when you need to monitor all SQL syntax
+    #spring.datasource.driverClassName=net.sf.log4jdbc.DriverSpy
+    #spring.datasource.url=jdbc:log4jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1
     spring.datasource.driverClassName=org.h2.Driver
+
+    ## In Memory
     spring.datasource.url=jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1
     spring.datasource.username=sa
     spring.datasource.password=
-    spring.datasource.hikari.maximum-pool-size=20
-    spring.datasource.sql-script-encoding=UTF-8
+
+    ## Non-Clear DB (please import schema.sql and data.sql by self.)
+    ## spring.datasource.url=jdbc:h2:tcp://localhost/./dgrdb
+    ## spring.datasource.username=sa
+    ## spring.datasource.password=123
+    #spring.datasource.url=jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    #spring.datasource.driverClassName=com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+
+    spring.datasource.hikari.maximum-pool-size=5
+    spring.sql.init.encoding=UTF-8
+    #spring.datasource.schema=classpath:schema.sql
+    #spring.datasource.data=classpath:data-h2.sql
     #[always][embedded][never]
-    spring.datasource.initialization-mode=always
+    spring.sql.init.mode=always
     spring.h2.console.enabled=true
-
-
-    #####################################
-    #                                   #
-    #  Set ENC encryption private key   #
-    #                                   #
-    #####################################
-    jasypt.encryptor.privateKeyFormat=PEM
-    jasypt.encryptor.privateKeyLocation=file:keys/enc.pem
-
-
     #################################
     #                               #
     #          spring.jpa           #
@@ -251,44 +269,85 @@ data:
     spring.jpa.hibernate.use-new-id-generator-mappings=true
     spring.jpa.show-sql=false
     spring.jpa.properties.hibernate.format_sql=false
-
-
     #看SQL的參數用,在logback.xml的ch.qos.logback.classic.filter.ThresholdFilter也要改成TRACE,TPILogger也要打開TRACE
     #logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
 
+    ########################################
+    #                                      #
+    #   digiRunner Token Keypair Path      #
+    #                                      #
+    ########################################
+    ## //windows(\\) & linux(/) path direction is different
     ## //Print [HikariPool] properties info at startup
     logging.level.com.zaxxer.hikari=debug
+
+    #####################################
+    #                                   #
+    #  Set ENC encryption private key   #
+    #                                   #
+    #####################################
+    jasypt.encryptor.privateKeyFormat=PEM
+    jasypt.encryptor.privateKeyLocation=file:keys/enc.pem
+
+
 
     #################################
     #                               #
     #  Https Certificate Settings   #
     #                               #
     #################################
-    # local run Mock Test: please set as false
+    # local run Mock Test: please set as false 
     #server.ssl.enabled=false
     server.ssl.enabled=true
-    server.ssl.key-store=keys/dgr-core.jks
-    server.ssl.key-store-password=ENC(ROGqEfZe0fm8UKdny947/5W1wQVnNtdmBrNF9nzA0iy0g+FiGI30ZdvUvUw5HgoIgZLc4uZCOVJSTeo/AvSJZ/bqeO2ahvBf28NGPmZuYR7UsjkucghfPXbIbLVuzDEoJFkXRo+Ojm6izp69hRm2gg+EaQS0ycM2YSMzs2IluGnoS5UsVrOdPjgXd3QcfyIAypqZ5egKFeTAuuF/2RHENfNox5JUKlba06MA8/7ao83L/tgod34Q0Me50Deym9FmA5ezCVFs37++0NdcOnbSLfMQxSYUiUw1TWMCKlPlE1CqSSIozi5dk5OMSA4vCoIhXx713CWqy9RBW2TJNmY6KQ==)
+    server.ssl.key-store=keys/express-dgr-core.jks
+    server.ssl.key-store-password=ENC(nZgPS3Rj1qmeKYrr2kRK7wGOXA98kJ9MUB0cm9/GOygJH5wmiIpePR/kjNHmfSt92kFBYCoZHhsWBQXq1vmSraWnCleZZNSzj84iGrCcceNQyMRHAky1W8U0pj8JKqtN9Vqw7vSH454hjcNGqu42m/5gAFdhN9SJz9OnQ8rh/Hq6F/Oj79JbXauhydyWUbcQjfQI+44LK/RWE+pBIl6L9ZddQRdw/1S/7S4cY38nyRoTsnKsCnTop613LeE5SaNHUlSEW3PY42/Q/70nhxdKAUJTTY2LWrHZtwctRjoDyljZkxGWOZg972qNRZeqTSWeV/nGDDu4jljqnYe3P23QGQ==)
     server.ssl.keyStoreType=jks
-    server.ssl.keyAlias=dgr-core
+    server.ssl.keyAlias=express-dgr-core
+
 
     ####################################
     #                                  #
     # digiRunner Token Keypair Setting #
     #                                  #
     ####################################
-    ## //windows(\\) & linux(/) path direction is different
+    #digiRunner.token.key-store.path=keys
+    #digiRunner.token.key-store.name=express-dgr-token.bcfks
+    #digiRunner.token.key-store-password=ENC(4Tf7hwYZB7/mqZ3LgsY79Hg/yENf5az2YthRa05PNFx7p+GFlJufalsHsLYVIt99DE9DH5uygNHtRuMYGpTG2HipZb0vojmfftYH77/c0UUYFxaTF9seRBHD1aJ4fYMfU1LGxZLMoCVZJ+UXSp4aV9+dMgl+CfkuzlJ82rMW+RNOSIkRZntez3OM/rltQXn4BdsQ03EO2EMb/HqrBhWF5xK2IiTWKaXavR2pWPA0j0o7a/1hlIFJ5w9ZduNswLeyEx7Hx6E36HbZT33hqOdgbYggeKMzqCG3JDRNOqq97zm8SIZmNBltOYXCaUh9bQh55b2dXcSIHr6k1gYzOwLs2g==)
+    #digiRunner.token.keyAlias=express-dgr-token
+    #digiRunner.token.keyStoreType=BCFKS
+
     digiRunner.token.key-store.path=keys
-    digiRunner.token.key-store.name=tsmp-core-token.jks
-    digiRunner.token.key-store-password=ENC(DyXYovLuCDy1SSnR2KJzBhb/T9XQSijCtlVcrrdWwPcWX0qNWXN9qdQLZ442A/bA9gLswYs/r2/ExyxOp0eRv7fw0NdiGhSjjI8bWG2n2yRZwn41snaT74HJr9k2Z93bL7hJRlhELQavpqe8Ap0AROIPar41TjqffsZQ7tpvXzWV5K4BndnEqTZUkze8gFAIyyYsoD0z7vMpO11VbLDBtohAlHTPvOapii8zqQiNfLUPHtfgHxrUca3WfSYmyO4WBBOqoBqDO4vunFK5xCV2ZgFU5T6CTavoBSjobXaZ0ssgc4l8DrUh5oPu7d3eMZrmLGZ3o8pjgf5uRtThUt36lg==)
-    digiRunner.token.keyAlias=tsmp-core-token
+    digiRunner.token.key-store.name=express-dgr-core.jks
+    digiRunner.token.key-store-password=ENC(v1qZRT3HsBhM6Zkyi4BS1sj/u72DbvM9VHJXluFaHvoNzcmEGZfSn26joLzWfQceYhR2I9ZsPQdx2RY6ibWAJ91vesBNN4xHSxEvvNm6WPOAPewupkwU7275lqc6q3CuGcp6CGEKwp6Vx4nHzIpJO7puYu+vl5uX20JlRNJyEgGAlKJIDK/MMCzDT4kbsLainPWP6pxDiT8iftvt/u2bnc2R74WMyID4+tDwwjdCQHm0r9y9fi6RhaAqFn/yB8INWfV0RzBDq7nyVIEXQKe66AxX9xjE6sT7/QrHQ1lSVTaDO5yQaN7XWszzNuMDgQqVxsrbuatrFwRxzW8sVG9Qug==)
+    digiRunner.token.keyAlias=express-dgr-token
     digiRunner.token.keyStoreType=JKS
 
-
     #  Be sure to choose one to fill in, otherwise access to all functions will be denied
-    #onlyAC / onlyGTW / Both
+    #onlyAC / onlyGTW / Both 
     digiRunner.gtw.mode=Both
 
+    #################################
+    #                               #
+    #  Cus whitelist                #
+    #                               #
+    #################################
+    #客製包ip與url白名單設定
+    cus.whitelist={ \
+      "cusScb": { \
+        "ips": [ \
+          "127.0.0.1", \
+          "0:0:0:0:0:0:0:1" \
+        ], \
+        "apis": [ \
+          "/dgrv4/version", \
+          "/dgrv4/OC-in", \
+          "/dgrv4/11/AA0101", \
+          "/dgrv4/17/DPB9937", \
+          "/dgrv4/ssotoken/sendMail", \
+          "/dgrv4/ssotoken/dataEncryption" \
+        ] \
+      } \
+    }
 
   application.properties: |
     #################################
@@ -296,14 +355,10 @@ data:
     #       spring.profiles         #
     #                               #
     #################################
-    server.http2.enabled=true
     spring.profiles.active=local
-    server.port=8080
-    server.tomcat.max-connections=81920
-    server.tomcat.accept-count=10000
-    server.connector.keep-alive-timeout=61000
-    server.tomcat.threads.max=1200
-    server.tomcat.threads.min-spare=150
+    server.port=8442
+    server.undertow.max-connections=81920
+    server.undertow.worker-threads=1200
     server.servlet.session.timeout=60s
 
 
@@ -361,7 +416,7 @@ data:
 
     ####################################
     #                                  #
-    #  API Connection Timeout          #
+    #  API Connection Timeout 	       #
     #                                  #
     ####################################
     spring.mvc.async.request-timeout=90000
@@ -377,13 +432,15 @@ data:
 
     ####################################
     #                                  #
-    #  graceful shutdown.       	   #
+    #  graceful shutdown.              #
     #  you can also configure the      #
     #  timeout period the application  #
     #  should wait for the current     #
     #  request to finish.              #
     #                                  #
     ####################################
+    #Whether to enable the Tomcat's  graceful shutdown
+    tomcat.Graceful=false
     server.shutdown=graceful
     spring.lifecycle.timeout-per-shutdown-phase=30s
 
@@ -393,156 +450,267 @@ data:
     #  Instance ID, Must, allow repeat #
     #                                  #
     ####################################
-    digi.instance.id=dgr
+    digi.instance.id=ABC
+
+
+    #################################
+    #                               #
+    #  dgR 	IP:Port             #
+    #                               #
+    #################################
+    cus.ip.port=localhost:4080
+
+    ####################################
+    #                                  #
+    #    Password non-persistence.     #
+    #                                  #
+    ####################################
+    #  This parameter is to determine whether the password will be stored.
+    #  embedded /api
+    db.connection.mode=embedded
+    # This is the API for rotating passwords.
+    cus.api.getDbMima=/dgrv4/cus/scb/CUS0001
+    # This is the API for Action Change. 
+    cus.api.notifyActionChange=/dgrv4/cus/scb/CUS0003
+    #DB啟動連線時預設兩組帳密中的第一組   value :1/2
+    dbConnectInit=1
+    #客製包資訊隱碼keyword
+    dbInfo.mask.keys=secretId1,secretId2,roleId1,roleId2
+
+
+
+    ####################################
+    #                                  #
+    #  In-Memory Gateway Setting       #
+    #                                  #
+    ####################################
+    ## Landing / Memory
+    digiRunner.gtw.deploy.role=
+    ## Only 'Memory' has id / interval.ms / landing.ip.port
+    digiRunner.gtw.deploy.id=
+    digiRunner.gtw.deploy.interval.ms=
+    digiRunner.gtw.deploy.landing.ip.port=
+    ## https / http
+    digiRunner.gtw.deploy.landing.scheme=
+    ####################################
+    #                                  #
+    #  Undertow Setting                #
+    #                                  #
+    ####################################
+    ## 設定伺服器的空閒超時時間，在指定的時間內沒有接收到客戶端的任何請求或數據,連接將被關閉
+    undertow.idle.timeout=61000
+    ## 請求的超時時間,以毫秒為單位。超過此時間的請求將被中止,以防止無回應的請求占用伺服器資源。
+    undertow.no.request.timeout=60000
+
+
+    #####################################
+    #                                   #
+    #  nginx gate settings              #
+    #                                   #
+    #####################################
+
+    # Whether to enable nginx gate function
+    gate.nginx.enable=false
+    # External port exposed by nginx gate. Should replace server.port. nginx will forward
+    gate.nginx.proxy-port=18181
+    # Whether to enable ssl for nginx
+    gate.nginx.ssl-enabled=true
+    # Path to the crt file for nginx ssl
+    gate.nginx.ssl-crt-path=/opt/keys/express-dgr-core.crt
+    # Path to the key file for nginx ssl
+    gate.nginx.ssl-key-path=/opt/keys/express-dgr-core.key
+    # Directory for nginx configuration. This may vary depending on how nginx is configured in the Dockerfile
+    gate.nginx.config-dir=/etc/nginx/http.d
+
+    #####################################
+    #                                   #
+    #  freemarker settings              #
+    #                                   #
+    #####################################
+    spring.freemarker.enabled=true
+    spring.freemarker.charset=UTF-8
+    spring.freemarker.suffix=.ftl
+    spring.freemarker.template-loader-path=classpath:/templates
 
   logback.xml: |
     <?xml version="1.0" encoding="UTF-8"?>
     <configuration scan="true" scanPeriod="60 seconds">
 
-            <property name="Charset" value="UTF-8" />
-            <property name="FileName" value="dgr" />
-            <property name="LogsLocation" value="logs" />
-            <property name="Format1" value="%d{HH:mm:ss.SSS} %-5level [%thread][%logger{0}.%M\\(%F:%L\\)] %msg%n" />
+      <property name="Charset" value="UTF-8" />
+      <property name="FileName" value="dgr" />
+      <property name="LogsLocation" value="logs" />
+      <property name="Format1" value="%d{HH:mm:ss.SSS} %-5level [%thread][%logger{0}.%M\(%F:%L\)] %msg%n" />
 
-            <!-- appender -->
-            <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
-                    <encoder>
-                            <pattern>${Format1}</pattern>
-                    </encoder>
-                    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <!-- appender -->	
+      <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+          <pattern>${Format1}</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
                 <level>DEBUG</level>
             </filter>
-            </appender>
-            <appender name="fileout" class="ch.qos.logback.core.rolling.RollingFileAppender">
-                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.log</fileNamePattern>
-                            <maxHistory>30</maxHistory>
-                            <maxFileSize>10MB</maxFileSize>
-                    </rollingPolicy>
-                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                            <pattern>${Format1}</pattern>
-                            <charset>${Charset}</charset>
-                    </encoder>
-                    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      </appender>
+      <appender name="fileout" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+          <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.log</fileNamePattern>
+          <maxHistory>30</maxHistory>
+          <maxFileSize>10MB</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+          <pattern>${Format1}</pattern>
+          <charset>${Charset}</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
                 <level>DEBUG</level>
             </filter>
-            </appender>
-            <appender name="fileerr" class="ch.qos.logback.core.rolling.RollingFileAppender">
-                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.err.log</fileNamePattern>
-                            <maxHistory>30</maxHistory>
-                            <maxFileSize>10MB</maxFileSize>
-                    </rollingPolicy>
-                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                            <pattern>${Format1}</pattern>
-                            <charset>${Charset}</charset>
-                    </encoder>
-                    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      </appender>
+      <appender name="fileerr" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+          <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.err.log</fileNamePattern>
+          <maxHistory>30</maxHistory>
+          <maxFileSize>10MB</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+          <pattern>${Format1}</pattern>
+          <charset>${Charset}</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
                 <level>ERROR</level>
             </filter>
-            </appender>
+      </appender>
+      
+      <appender name="fileloguuid" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+          <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.loguuid.log</fileNamePattern>
+          <maxHistory>30</maxHistory>
+          <maxFileSize>10MB</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+          <pattern>${Format1}</pattern>
+          <charset>${Charset}</charset>
+        </encoder>
+          <filter class="ch.qos.logback.core.filter.EvaluatorFilter">      
+            <evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
+              <expression>return message.contains("LOGUUID");</expression>
+            </evaluator>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+          </filter>
+      </appender>
 
-            <appender name="fileloguuid" class="ch.qos.logback.core.rolling.RollingFileAppender">
-                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.loguuid.log</fileNamePattern>
-                            <maxHistory>30</maxHistory>
-                            <maxFileSize>10MB</maxFileSize>
-                    </rollingPolicy>
-                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                            <pattern>${Format1}</pattern>
-                            <charset>${Charset}</charset>
-                    </encoder>
-                <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
-                  <evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
-                    <expression>return message.contains("LOGUUID");</expression>
-                  </evaluator>
-                  <OnMismatch>DENY</OnMismatch>
-                  <OnMatch>ACCEPT</OnMatch>
-                </filter>
-            </appender>
+      <appender name="file_sys_info" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+          <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.file_sys_info.log</fileNamePattern>
+          <maxHistory>30</maxHistory>
+          <maxFileSize>10MB</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+          <pattern>${Format1}</pattern>
+          <charset>${Charset}</charset>
+        </encoder>
+          <filter class="ch.qos.logback.core.filter.EvaluatorFilter">      
+            <evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
+              <expression>
+              boolean logStartFlag = message.matches(".*Starting DgrApplication( vv\\d+\\.\\d+\\.\\d+)? using Java.*")
+              || message.contains("Running with Spring Boot")
+              || message.contains("profile is active");
+          if (logStartFlag) {
+            tpi.dgrv4.gateway.keeper.TPILogger.logStartingMsg.add(message);
+          }
+              
+              return 
+              logStartFlag
+              || message.contains("dgr-keeper server [go LIVE]")
+              || message.contains("This Client Connect to dgr-keeper server")
+              || message.contains("dgRv4 web server info")
+              || false;
+              </expression>
+            </evaluator>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+          </filter>
+      </appender>
 
-            <appender name="file_sys_info" class="ch.qos.logback.core.rolling.RollingFileAppender">
-                    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                            <fileNamePattern>${LogsLocation}/${FileName}.%d{yyyyMMdd}.%i.file_sys_info.log</fileNamePattern>
-                            <maxHistory>30</maxHistory>
-                            <maxFileSize>10MB</maxFileSize>
-                    </rollingPolicy>
-                    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                            <pattern>${Format1}</pattern>
-                            <charset>${Charset}</charset>
-                    </encoder>
-                <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
-                  <evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
-                    <expression>
-                    boolean logStartFlag = message.contains("Starting DgrApplication using Java")
-                    || message.contains("Running with Spring Boot")
-                    || message.contains("profile is active");
-                            if (logStartFlag) {
-                                    tpi.dgrv4.gateway.keeper.TPILogger.logStartingMsg.add(message);
-                            }
+      <!-- logger -->
+      <root level="DEBUG">
+      </root>
+      
+      <!-- Logger 的 level 愈大要放愈下面, 不然會被蓋掉 -->
+      <logger name="tpi.dgrv4" level="ERROR" additivity="false">
+          <appender-ref ref="fileerr" />
+      </logger>
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+          <appender-ref ref="file_sys_info" />
+      </logger>
+      <logger name="org.springframework.boot.web.embedded.tomcat" level="INFO" additivity="false">
+        <appender-ref ref="stdout" />
+        <appender-ref ref="fileout" />
+      </logger>
+      <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
+        <appender-ref ref="stdout" />
+        <appender-ref ref="fileout" />
+      </logger>
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+        <appender-ref ref="stdout" />
+      </logger>
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+        <appender-ref ref="fileloguuid" />
+      </logger>	
+        <logger name="tpi.dgrv4" level="TRACE" additivity="false">
+        <appender-ref ref="fileout" />
+      </logger>	
+      
 
-                    return
-                    logStartFlag
-                    || message.contains("dgr-keeper server [go LIVE]")
-                    || message.contains("This Client Connect to dgr-keeper server")
-                    || message.contains("dgRv4 web server info")
-                    || false;
-                    </expression>
-                  </evaluator>
-                  <OnMismatch>DENY</OnMismatch>
-                  <OnMatch>ACCEPT</OnMatch>
-                </filter>
-            </appender>
-
-            <!-- logger -->
-            <root level="TRACE">
-            </root>
-
-
-
-            <!-- Default: Product Release
-            <logger name="tpi.dgrv4" level="INFO" additivity="false">
-                            <appender-ref ref="file_sys_info" />
-            </logger>
-            <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
-                    <appender-ref ref="fileout" />
-            </logger>
-            <logger name="tpi.dgrv4" level="TRACE" additivity="false">
-                    <appender-ref ref="fileout" />
-            </logger>
-            -->
-
-
-            <logger name="tpi.dgrv4" level="ERROR" additivity="false">
-                            <appender-ref ref="fileerr" />
-            </logger>
-            <logger name="tpi.dgrv4" level="INFO" additivity="false">
-                            <appender-ref ref="file_sys_info" />
-            </logger>
-            <logger name="org.springframework.boot.web.embedded.tomcat" level="INFO" additivity="false">
-                    <appender-ref ref="stdout" />
-                    <appender-ref ref="fileout" />
-            </logger>
-            <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
-                    <appender-ref ref="stdout" />
-                    <appender-ref ref="fileout" />
-            </logger>
-            <logger name="tpi.dgrv4" level="INFO" additivity="false">
-                    <appender-ref ref="stdout" />
-            </logger>
-            <logger name="tpi.dgrv4" level="INFO" additivity="false">
-                    <appender-ref ref="fileloguuid" />
-            </logger>
-                    <logger name="tpi.dgrv4" level="TRACE" additivity="false">
-                    <appender-ref ref="fileout" />
-            </logger>
-
-
+      
+      <!-- Default: Product Release
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+          <appender-ref ref="file_sys_info" />
+      </logger>
+      <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
+        <appender-ref ref="fileout" />
+      </logger>
+      <logger name="tpi.dgrv4" level="TRACE" additivity="false">
+        <appender-ref ref="fileout" />
+      </logger>
+      -->
 
 
+      <!-- Option: DevOps
+      <logger name="tpi.dgrv4" level="ERROR" additivity="false">
+          <appender-ref ref="fileerr" />
+      </logger>
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+          <appender-ref ref="file_sys_info" />
+      </logger>
+      <logger name="org.springframework.boot.web.embedded.tomcat" level="INFO" additivity="false">
+        <appender-ref ref="stdout" />
+        <appender-ref ref="fileout" />
+      </logger>
+      <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
+        <appender-ref ref="stdout" />
+        <appender-ref ref="fileout" />
+      </logger>
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+        <appender-ref ref="stdout" />
+      </logger>
+      <logger name="tpi.dgrv4" level="INFO" additivity="false">
+        <appender-ref ref="fileloguuid" />
+      </logger>	
+        <logger name="tpi.dgrv4" level="TRACE" additivity="false">
+        <appender-ref ref="fileout" />
+      </logger>
+
+      -->
+      
+      
+      
+      
 
 
     </configuration>
+
+  dgr.java.security: |
+    security.provider.14=org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider
 
 ---
 
