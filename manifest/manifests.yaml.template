@@ -71,7 +71,7 @@ spec:
         terminationMessagePolicy: File
         volumeMounts:
         - name: config-volume
-          mountPath: /usr/share/digiRunner/config/
+          mountPath: /opt/dgr-v4/config/
       - args:
         - "1024"
         image: $imageComposerRepo
@@ -212,7 +212,7 @@ metadata:
   name: properties-mounts
   namespace: $NAMESPACE
 data:
-  application-gcp.properties: |
+  application-local.properties: |
     ########################################
     #                                      #
     #   Different connection environments  #
@@ -235,8 +235,6 @@ data:
     #                               #
     #################################
     ## //Open it when you need to monitor all SQL syntax
-    #spring.datasource.driverClassName=net.sf.log4jdbc.DriverSpy
-    #spring.datasource.url=jdbc:log4jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1
     spring.datasource.driverClassName=org.h2.Driver
 
     ## In Memory
@@ -244,18 +242,9 @@ data:
     spring.datasource.username=sa
     spring.datasource.password=
 
-    ## Non-Clear DB (please import schema.sql and data.sql by self.)
-    ## spring.datasource.url=jdbc:h2:tcp://localhost/./dgrdb
-    ## spring.datasource.username=sa
-    ## spring.datasource.password=123
-    #spring.datasource.url=jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    #spring.datasource.driverClassName=com.microsoft.sqlserver.jdbc.SQLServerDriver
-
-
     spring.datasource.hikari.maximum-pool-size=5
     spring.sql.init.encoding=UTF-8
-    #spring.datasource.schema=classpath:schema.sql
-    #spring.datasource.data=classpath:data-h2.sql
+
     #[always][embedded][never]
     spring.sql.init.mode=always
     spring.h2.console.enabled=true

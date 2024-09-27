@@ -203,7 +203,14 @@ EOF
 ```
 
 ### Modify the configMap to establish connections for the specified settings with the PostgreSQL instance.
-`kubectl -n $NAMESPACE edit configmap properties-mounts`
+
+### Use the following command to replace.
+```
+kubectl get configmap properties-mounts -n $NAMESPACE -o yaml | sed "s/org.h2.Driver/org.postgresql.Driver/g ; s%jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1%jdbc:postgresql://cloudsql-proxy:5432/digirunner%g ; s/spring.datasource.username=sa/spring.datasource.username=postgres/g ; s/spring.datasource.password=/spring.datasource.password=$DB_PASSWORD/g ; s/spring.sql.init.mode=always/spring.sql.init.mode=never/g ; s/spring.jpa.database=h2/spring.jpa.database=PostgreSQL/g ; s/spring.h2.console.enabled=true/ /g" | kubectl replace -f -
+```
+### Optional:
+ - You can modify the `configmap` using your own database connection.
+ - kubectl -n $NAMESPACE edit configmap properties-mounts
 ```
 # example:
 spring.datasource.driverClassName=org.postgresql.Driver
@@ -214,13 +221,13 @@ spring.jpa.database=PostgreSQL
 ```
  - The default initialization-mode is `always`. Change it to `never`.
 ```
-spring.datasource.initialization-mode=never
+spring.sql.init.mode=never
 ```
  - Remove the next line.
 ```
 spring.h2.console.enabled=true
 ```
-### After editing the configMap, execute the following command to connect the DB connection to the Cloud SQL instance.
+# After editing the configMap, execute the following command to connect the DB connection to the Cloud SQL instance.
 ```
 kubectl rollout restart deployment digirunner -n $NAMESPACE
 ```
