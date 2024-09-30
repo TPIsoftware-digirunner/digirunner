@@ -117,8 +117,8 @@ envsubst < ./yaml/manifest_cloudsql_proxy_mariadb.yaml > ./yaml/cloudsql_proxy_m
 envsubst < ./yaml/manifest_cloudsql_proxy_svc.yaml     > ./yaml/cloudsql_proxy_svc.yaml
 
 envsubst < ./yaml/manifest_digi_hpa.yaml        > ./yaml/digi_hpa.yaml
+export IMAGE_DIGIRUNNER_APP='gcr.io/tpisoftware-digirunner-public/digirunner/digirunner:4.2.19'
 envsubst < ./yaml/manifest_keeper.yaml          > ./yaml/keeper.yaml
-envsubst < ./yaml/manifest_keeper_svc.yaml      > ./yaml/keeper_svc.yaml
 ```
 # Using cloudsql_proxy for internal secure connections.
 ### Create a Google Cloud service account (GSA) and Kubernetes service account (KSA), Grant permissions for your Kubernetes service account (KSA) to impersonate the GSA (used by cloudsql_proxy)
@@ -187,10 +187,7 @@ kubectl apply -f ./yaml/frontendconfig.yaml
 ```
 `Optional`: Deploying the High Availability version requires deploying the Horizontal Pod Autoscaler (HPA) and keeper YAML files.
 ```
-export IMAGE_DIGIRUNNER_APP='gcr.io/tpisoftware-digirunner-public/digirunner/digirunner:4.2.5'
-export IMAGE_COMPOSER_APP='gcr.io/tpisoftware-digirunner-public/digirunner/composer:4.2.5'
 kubectl apply -f ./yaml/digi_hpa.yaml
-kubectl apply -f ./yaml/keeper_svc.yaml
 kubectl apply -f ./yaml/keeper.yaml
 ```
 

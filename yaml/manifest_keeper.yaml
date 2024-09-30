@@ -1,3 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: digi-keeper
+  namespace: $NAMESPACE
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"digi-keeper":"digi-keeper-backendconfig"}}'
+    cloud.google.com/app-protocols: '{"digi-keeper":"HTTPS"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  ports:
+    - name: digi-keeper
+      port: 8445
+      targetPort: 8445
+  selector:
+    app: digi-keeper
+  type: NodePort
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,20 +48,33 @@ spec:
       imagePullSecrets:
         - name: pull-images-secret
       containers:
-      - env:
-        - name: Xmx
-          value: 3g
-        - name: Xms
-          value: 3g
-        - name: active
-          value: gcp
-        - name: TAEASK_KEY
-          value: TsmpAESEncryptionActionSecretKey
-        - name: port
-          value: '8442'
+      - args:
+          - -Xms3g
+          - -Xmx3g
+          - -Dloader.path=lib/,libsext/
+          - -Djava.security.debug=properties
+          - -Djava.security.properties=./config/dgr.java.security
+          - -Dspring.config.location=file:./config/
+          - -DdigiRunner.token.key-store.path=./keys
+          - -Djasypt.encryptor.privateKeyLocation=file:./keys/enc.pem
+          - -Dfile.encoding=UTF-8
+          - -Dlogging.config=file:./config/logback.xml
+          - -Dserver.port=8442
+          - -Dspring.profiles.active=local
+          - org.springframework.boot.loader.launch.PropertiesLauncher
+        command:
+          - java
+          - -cp
+          - app-cp/*
+        env:
+          - name: TZ
+            value: Asia/Taipei
+          - name: TAEASK
+            value: TsmpAESEncryptionActionSecretKey
+        workingDir: /opt/dgr-v4
         image: $IMAGE_DIGIRUNNER_APP
-        imagePullPolicy: IfNotPresent
-        name: digirunner-main
+        imagePullPolicy: Always
+        name: digirunner-keeper
         ports:
         - containerPort: 8445
           protocol: TCP
@@ -57,51 +90,15 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-        - mountPath: /usr/share/digiRunner/config
-          name: nfs-volume-config
-        - mountPath: /usr/share/digiRunner/keys
-          name: nfs-volume-keys
-      - args:
-        - "1024"
-        image: $IMAGE_COMPOSER_APP
-        imagePullPolicy: IfNotPresent
-        name: composer
-        ports:
-        - containerPort: 8440
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 300m
-            memory: 1G
-          requests:
-            cpu: 100m
-            memory: 200Mi
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /node-red/setting/env
-          name: nfs-volume-env
-        - mountPath: /node-red/setting/pem
-          name: nfs-volume-pem
+        - name: config-volume
+          mountPath: /opt/dgr-v4/config/
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: nfs-volume-config
-        nfs:
-          path: /exports/config
-          server: nfs-server.default.svc.cluster.local
-      - name: nfs-volume-keys
-        nfs:
-          path: /exports/keys
-          server: nfs-server.default.svc.cluster.local
-      - name: nfs-volume-env
-        nfs:
-          path: /exports/env
-          server: nfs-server.default.svc.cluster.local
-      - name: nfs-volume-pem
-        nfs:
-          path: /exports/pem
-          server: nfs-server.default.svc.cluster.local
+      - name: config-volume
+        configMap:
+          name: properties-mounts
+
