@@ -96,12 +96,7 @@ gcloud services enable cloudresourcemanager.googleapis.com
 ``` 
 ---
 
-### Optional:  If you don't have `GKE` and `Database`, you can follow these steps to create them using Terraform:
-[Refer to the document](terraform/terraform.md)
-
----
-
-### Clone the k8s yaml
+# Clone the k8s yaml
 ```
 git clone https://github.com/TPIsoftware-digirunner/digirunner.git
 cd digirunner/
@@ -185,7 +180,11 @@ Frontendconfig is used to redirect `http` to `https`.
 ```
 kubectl apply -f ./yaml/frontendconfig.yaml
 ```
-`Optional`: Deploying the High Availability version requires deploying the Horizontal Pod Autoscaler (HPA) and keeper YAML files.
+### Temporarily set the replica count of the digirunner application to zero.
+```
+kubectl scale --replicas=0 deployment/digirunner
+```
+### Deploying the High Availability architecture, Horizontal Pod Autoscaler (HPA) and keeper YAML files.
 ```
 kubectl apply -f ./yaml/digi_hpa.yaml
 kubectl apply -f ./yaml/keeper.yaml
@@ -205,26 +204,12 @@ EOF
 ```
 kubectl get configmap properties-mounts -n $NAMESPACE -o yaml | sed "s/org.h2.Driver/org.postgresql.Driver/g ; s%jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1%jdbc:postgresql://cloudsql-proxy:5432/digirunner%g ; s/spring.datasource.username=sa/spring.datasource.username=postgres/g ; s/spring.datasource.password=/spring.datasource.password=$DB_PASSWORD/g ; s/spring.sql.init.mode=always/spring.sql.init.mode=never/g ; s/spring.jpa.database=h2/spring.jpa.database=PostgreSQL/g ; s/spring.h2.console.enabled=true/ /g" | kubectl replace -f -
 ```
-### Optional:
- - You can modify the `configmap` using your own database connection.
- - kubectl -n $NAMESPACE edit configmap properties-mounts
-```
-# example:
-spring.datasource.driverClassName=org.postgresql.Driver
-spring.datasource.url=jdbc:postgresql://cloudsql-proxy:5432/digirunner
-spring.datasource.username=postgres
-spring.datasource.password=[YOUR-DB-PASSWORD]
-spring.jpa.database=PostgreSQL
-```
- - The default initialization-mode is `always`. Change it to `never`.
-```
-spring.sql.init.mode=never
-```
- - Remove the next line.
-```
-spring.h2.console.enabled=true
-```
 # After editing the configMap, execute the following command to connect the DB connection to the Cloud SQL instance.
 ```
+kubectl rollout restart deployment digirunner-keeper -n $NAMESPACE
 kubectl rollout restart deployment digirunner -n $NAMESPACE
+```
+# Increase the replica count of the digirunner application to 2.
+```
+kubectl scale --replicas=2 deployment/digirunner
 ```
