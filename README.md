@@ -34,7 +34,8 @@ export OPERATOR=`gcloud config get-value account`
 ```
 export NAMESPACE="default"
 ```
- - Create GKE cluster.
+ - Create GKE cluster. 
+ - Minimum machine-type requirement is n2d-standard-2 or higher.
 ```
 gcloud container clusters create $CLUSTER_NAME \
   --machine-type "n2d-standard-2" \
