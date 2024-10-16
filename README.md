@@ -11,11 +11,13 @@
 Install this digiRunner app to a Google Kubernetes Engine cluster using Google Cloud Marketplace. Follow the on-screen instructions.
 
 # Prerequisites
-### 1. You will need a `PostgreSQL` database. You can either create your own DB and set up a connection, or you can follow the steps below to create one in GCP Cloud SQL.
+### 1. You will need a `GKE cluster` and a`PostgreSQL` database. 
+ - Use the following command to create `GKE cluster` and  `Cloud SQL` database.
 
  - digiRunner needs database and domain, setting up `DB password` and `Domain name`.
- - Replace the variable of `DB_INSTANCE`, `DB_PASSWORD`, `REGION`, `ZONE` and `LOCATION`.
+ - Replace the variable of `CLUSTER_NAME`, `DB_INSTANCE`, `DB_PASSWORD`, `REGION`, `ZONE` and `LOCATION`.
 ```
+export CLUSTER_NAME="digi-cluster"
 export DB_INSTANCE="digi-postgres"
 export DB_PASSWORD="DeFault_pW"
 export REGION="asia-east1"
@@ -32,11 +34,16 @@ export OPERATOR=`gcloud config get-value account`
 ```
 export NAMESPACE="default"
 ```
- - Set up cluster name and enable Workload Identity Federation for GKE.
- - If you have multiple GKE clusters, you need to manually set the `CLUSTER_NAME` variable to the cluster where you installed digirunner application.
+ - Create GKE cluster.
 ```
-export CLUSTER_NAME=`gcloud container clusters list --format="value(name)"`
-gcloud container clusters update $CLUSTER_NAME --location=$LOCATION --workload-pool=$PROJECT_ID.svc.id.goog
+gcloud container clusters create $CLUSTER_NAME \
+  --machine-type "n2d-standard-2" \
+  --image-type "COS_CONTAINERD" \
+  --disk-type "pd-ssd" \
+  --disk-size "100GB" \
+  --workload-pool "$PROJECT_ID.svc.id.goog" \
+  --node-locations $LOCATION \
+  --zone $ZONE
 ```
  - Set up node-pools name and enable Workload Identity.
 ```
@@ -52,6 +59,8 @@ gcloud sql instances create $DB_INSTANCE --database-version=POSTGRES_15 --cpu=2 
 ```
 gcloud sql databases create digirunner --instance=$DB_INSTANCE
 ```
+### `When you complete the above steps, you can click the CONFIGUE button on the marketplace page and select the GKE cluster created above to install digirunner.`
+![configure_png](resources/configure.png)
 
 ### 2. You will need a `Domain Name` and `external IP`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`. [Refer to this step.](#create-certificates)
  - digiRunner needs domain name.
