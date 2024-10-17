@@ -3,7 +3,10 @@
 
 # Installation
 ### It is recommended to use cloud shell for installation
-
+- Click the "Activate Cloud Shell" button up top on the right.
+![Architecture diagram](resources/open_cloud_shell.png)
+- A cloud shell terminal will be launched for the current project.
+![Architecture diagram](resources/cloud_shell_terminal.png)
 ---
 
 # Quick install with Google Cloud Marketplace
@@ -16,13 +19,23 @@ Install this digiRunner app to a Google Kubernetes Engine cluster using Google C
 
  - digiRunner needs database and domain, setting up `DB password` and `Domain name`.
  - Replace the variable of `CLUSTER_NAME`, `DB_INSTANCE`, `DB_PASSWORD`, `REGION`, `ZONE` and `LOCATION`.
+ - Please note that `environment variables` set in the cloud shell will be lost upon session termination. You must re-`export` environment variables after each session.
 ```
-export CLUSTER_NAME="digi-cluster"
-export DB_INSTANCE="digi-postgres"
-export DB_PASSWORD="DeFault_pW"
-export REGION="asia-east1"
-export ZONE="asia-east1-a"
-export LOCATION="asia-east1-a"
+# Format Description:
+export CLUSTER_NAME="[user_define]"
+export DB_INSTANCE="[user_define]"
+export DB_PASSWORD="[user_define]"
+export REGION="[user_define]"
+export ZONE="[user_define]"
+export LOCATION="[user_define]"
+
+# Example:
+# export CLUSTER_NAME="digi-cluster"
+# export DB_INSTANCE="digi-postgres"
+# export DB_PASSWORD="DeFault_pW"
+# export REGION="asia-east1"
+# export ZONE="asia-east1-a"
+# export LOCATION="asia-east1-a"
 ```
  - You can use the following commands to list and set the `PROJECT_ID`, `PROJECT_NUM` and `OPERATOR` variables. These variables will be referenced in subsequent steps.
 ```
@@ -60,9 +73,8 @@ gcloud sql instances create $DB_INSTANCE --database-version=POSTGRES_15 --cpu=2 
 ```
 gcloud sql databases create digirunner --instance=$DB_INSTANCE
 ```
-### `When you complete the above steps, you can click the CONFIGUE button on the marketplace page and select the GKE cluster created above to install digirunner.`
-![configure_png](resources/configure.png)
-
+### The `K8s` and `database` infrastructure are now ready. Next, we will proceed to the marketplace to install the application.
+---
 ### 2. You will need a `Domain Name` and `external IP`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`. [Refer to this step.](#create-certificates)
  - digiRunner needs domain name.
  - Replace the variable of `DIGI_DOMAIN`.
@@ -81,8 +93,18 @@ You need to run this command once.
 gcloud container clusters get-credentials $CLUSTER_NAME --location $LOCATION
 kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/master/crd/app-crd.yaml"
 ```
+### 4. Install the digirunner application from marketplace.
+- Search for "marketplace" in the search bar.
+![configure_png](resources/search_bar.png)
 
+- Search for "digirunner" in the marketplace page.
+![configure_png](resources/market_page.png)
 
+- click the `CONFIGUE` button on the marketplace page and select the GKE cluster created above to install digirunner.
+![configure_png](resources/configure.png)
+
+- Fill in the form information and click `DEPLOY`. 
+![configure_png](resources/deploy.png)
 ---
 
 # Command line instructions
