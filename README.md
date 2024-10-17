@@ -2,6 +2,7 @@
 ![Architecture diagram](resources/digiR_Architecture.png)
 
 # Installation
+### Please surf to https://cloud.google.com/ and login with your user account.
 ### It is recommended to use cloud shell for installation
 - Click the "Activate Cloud Shell" button up top on the right.
 ![Architecture diagram](resources/open_cloud_shell.png)
@@ -80,7 +81,12 @@ gcloud sql databases create digirunner --instance=$DB_INSTANCE
  - Replace the variable of `DIGI_DOMAIN`.
  - Reserve a new static external IP address.
 ```
-export DIGI_DOMAIN="your.domain.name"
+# Format Description:
+export DIGI_DOMAIN="[your_domain_name]"
+
+# Example:
+# export DIGI_DOMAIN="my-digirunner.domain.com"
+
 gcloud compute addresses create dgr-ingress --global --ip-version=IPV4
 ```
 ### 3. Install the Application resource definition
@@ -97,7 +103,7 @@ kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketpl
 - Search for "marketplace" in the search bar.
 ![configure_png](resources/search_bar.png)
 
-- Search for "digirunner" in the marketplace page.
+- Search for "digirunner" or "digi" in the marketplace page.
 ![configure_png](resources/market_page.png)
 
 - click the `CONFIGUE` button on the marketplace page and select the GKE cluster created above to install digirunner.
