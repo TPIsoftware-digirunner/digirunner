@@ -88,7 +88,9 @@ export DIGI_DOMAIN="[your_domain_name]"
 # export DIGI_DOMAIN="my-digirunner.domain.com"
 
 gcloud compute addresses create dgr-ingress --global --ip-version=IPV4
+gcloud compute addresses describe dgr-ingress --global | grep 'address:'
 ```
+ - After creating an `IP address`, you need to bind your domain and IP address with your `domain registrar` yourself. 
 ### 3. Install the Application resource definition
 
 An Application resource is a collection of individual Kubernetes components, such as Services, Deployments, and so on, that you can manage as a group.
@@ -135,6 +137,14 @@ gcloud services enable cloudresourcemanager.googleapis.com
 ---
 
 # Clone the k8s yaml
+### These YAML files will 
+ - Deploy an Ingress, configure the domain to the Ingress
+ - Bind an SSL certificate
+ - Connect to the database via cloudsql_proxy
+ - Set up HPA
+ - And deploy the digirunner keeper service
+
+### Please follow the instructions below.
 ```
 git clone https://github.com/TPIsoftware-digirunner/digirunner.git
 cd digirunner/
