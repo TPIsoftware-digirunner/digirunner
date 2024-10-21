@@ -5,9 +5,9 @@
 ### Please surf to https://cloud.google.com/ and login with your user account.
 ### It is recommended to use cloud shell for installation
 - Click the "Activate Cloud Shell" button up top on the right.
-![Architecture diagram](resources/open_cloud_shell.png)
+![open_cloud_shell](resources/open_cloud_shell.png)
 - A cloud shell terminal will be launched for the current project.
-![Architecture diagram](resources/cloud_shell_terminal.png)
+![cloud_shell_terminal](resources/cloud_shell_terminal.png)
 ---
 
 # Quick install with Google Cloud Marketplace
@@ -105,6 +105,9 @@ You need to run this command once.
 gcloud container clusters get-credentials $CLUSTER_NAME --location $LOCATION
 kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/master/crd/app-crd.yaml"
 ```
+ - Command Result:
+![crd](resources/crd.png)
+
 ### 4. Install the digirunner application from marketplace.
 - Search for "marketplace" in the search bar.
 ![configure_png](resources/search_bar.png)
@@ -140,6 +143,9 @@ gcloud services enable cloudresourcemanager.googleapis.com|Enable google apis|
 gcloud auth configure-docker
 gcloud services enable cloudresourcemanager.googleapis.com
 ```
+ - Command Result:
+![docker_credential](resources/docker_credential.png)
+
 ---
 # These YAML files will
 - Deploy an Ingress, configure the domain to the Ingress
@@ -169,6 +175,9 @@ envsubst < ./yaml/manifest_cloudsql_proxy_svc.yaml     > ./yaml/cloudsql_proxy_s
 envsubst < ./yaml/manifest_digi_hpa.yaml               > ./yaml/digi_hpa.yaml
 envsubst < ./yaml/manifest_keeper.yaml                 > ./yaml/keeper.yaml
 ```
+ - Command Result:
+![clone](resources/clone.png)
+
 # How to use cloudsql_proxy for internal secure connections.
 ### Create a Google Cloud service account (GSA) and Kubernetes service account (KSA), Grant permissions for your Kubernetes service account (KSA) to impersonate the GSA (used by cloudsql_proxy)
 |Command Line|Descriptions|User-Defined Value|
@@ -199,18 +208,26 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member "serviceAccount:mysq
 gcloud iam service-accounts keys create ./key/gsa-key.json --iam-account mysql-gsa@$PROJECT_ID.iam.gserviceaccount.com
 kubectl create secret generic gsa-key --from-file=./key/gsa-key.json -n $NAMESPACE
 ```
+ - Command Illustration:
+![create_gsa_ksa](resources/create_gsa_ksa.png)
+ - Command Result:
+![key_json](resources/key_json.png)
+
+
 Note: Along with the previous commands of exporting the variables:
 ```
-export CLUSTER_NAME="digi-cluster"
-export DB_INSTANCE="digi-postgres"
-export DB_PASSWORD="DeFault_pW"
-export REGION="asia-east1"
-export ZONE="asia-east1-a"
-export LOCATION="asia-east1-a"
-export PROJECT_ID=`gcloud config get-value project`
-export PROJECT_NUM=`gcloud projects describe $PROJECT_ID --format="value(projectNumber)"`
-export OPERATOR=`gcloud config get-value account`
-export NAMESPACE="default"
+# Please note that "environment variables" set in the cloud shell will be lost upon session termination. You must re-export environment variables after each session.
+
+# export CLUSTER_NAME="digi-cluster"
+# export DB_INSTANCE="digi-postgres"
+# export DB_PASSWORD="DeFault_pW"
+# export REGION="asia-east1"
+# export ZONE="asia-east1-a"
+# export LOCATION="asia-east1-a"
+# export PROJECT_ID=`gcloud config get-value project`
+# export PROJECT_NUM=`gcloud projects describe $PROJECT_ID --format="value(projectNumber)"`
+# export OPERATOR=`gcloud config get-value account`
+# export NAMESPACE="default"
 ```
 
 
@@ -237,6 +254,8 @@ gcloud iam service-accounts add-iam-policy-binding $PROJECT_NUM-compute@develope
     --role roles/iam.workloadIdentityUser \
     --member "serviceAccount:$PROJECT_ID.svc.id.goog[default/default]"
 ```
+ - Command Result:
+![role_bind](resources/role_bind.png)
 ---
 
 # How to deploy digiRunner `certificate`, `ingress`, `frontendconfig`, `HPA` and `keeper`.
@@ -263,6 +282,12 @@ kubectl apply -f ./yaml/frontendconfig.yaml
 kubectl apply -f ./yaml/digi_hpa.yaml
 kubectl apply -f ./yaml/keeper.yaml
 ```
+
+ - Command Illustration:
+![keeper](resources/keeper.png)
+ - Command Result:
+![keeper_done](resources/keeper_done.png)
+
 Note: Users need to reference the previous variables `$DIGI_DOMAIN` and `$PROJECT_ID`
 
 ---
@@ -279,15 +304,22 @@ kubectl apply -f - << EOF
 $(curl -s https://raw.githubusercontent.com/TPIsoftware-digirunner/initialize-script/main/sql-init.yaml | sed -e "s/sed_password/$DB_PASSWORD/g" -e "s/sed_instance/$DB_INSTANCE/g")
 EOF
 ```
+ Command Result:
+![run_job](resources/run_job.png)
 
  - Use the following command to replace DB connections.
+
 |Descriptions|User-Defined Value|
 |-|-|
-|Modify the configMap to establish connections for the specified settings with the PostgreSQL instance.|$NAMESPACE, $DB_PASSWORD|
+|Modify the configMap to establish connections for the specified settings with the PostgreSQL instance.| $NAMESPACE, $DB_PASSWORD|
 
 ```
 kubectl get configmap properties-mounts -n $NAMESPACE -o yaml | sed "s/org.h2.Driver/org.postgresql.Driver/g ; s%jdbc:h2:mem:dgrdb;DB_CLOSE_DELAY=-1%jdbc:postgresql://cloudsql-proxy:5432/digirunner%g ; s/spring.datasource.username=sa/spring.datasource.username=postgres/g ; s/spring.datasource.password=/spring.datasource.password=$DB_PASSWORD/g ; s/spring.sql.init.mode=always/spring.sql.init.mode=never/g ; s/spring.jpa.database=h2/spring.jpa.database=PostgreSQL/g ; s/spring.h2.console.enabled=true/ /g" | kubectl replace -f -
 ```
+ Command Result:
+![replace_config](resources/replace_config.png)
+
+
 Note: Users need to reference the previous variables `$DB_INSTANCE`, `$DB_PASSWORD` and `$NAMESPACE`
 
 ---
@@ -303,6 +335,10 @@ kubectl rollout restart deployment digirunner -n $NAMESPACE|Rollout restart to m
 kubectl rollout restart deployment digirunner-keeper -n $NAMESPACE
 kubectl rollout restart deployment digirunner -n $NAMESPACE
 ```
+
+ Command Result:
+![rollout](resources/rollout.png)
+
 Note: Users need to reference the previous variables `$NAMESPACE`.
 
 ---
