@@ -1,5 +1,5 @@
 # Architecture
-![Architecture diagram](resources/digiR_Architecture.png)
+![Architecture diagram](resources/architecture_digiR.png)
 
 # Installation
 ### Please surf to https://cloud.google.com/ and login with your user account.
