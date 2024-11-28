@@ -1,4 +1,4 @@
-# Architecture
+# Architecture (TEST)
 ![Architecture diagram](resources/architecture_digiR.png)
 
 # Installation
