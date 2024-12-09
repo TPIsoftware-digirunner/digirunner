@@ -75,7 +75,7 @@ gcloud sql databases create digirunner --instance=$DB_INSTANCE
 ```
 ### The `K8s` and `database` infrastructure are now ready. Next, we will proceed to the marketplace to install the application.
 ---
-### 2. You will need a `Domain Name` and `external IP`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`. [Refer to this step.](#create-certificates)
+### 2. You will need a `Domain Name` and `external IP`. digiRunner uses encrypted connections, so you can follow the steps below to set up an `SSL certificate`. [Refer to this step.](#how-to-deploy-digirunner-certificate-ingress-frontendconfig-hpa-and-keeper)
  - digiRunner needs domain name.
  - Replace the variable of `DIGI_DOMAIN`.
  - Reserve a new static external IP address.
