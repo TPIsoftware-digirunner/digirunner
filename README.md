@@ -127,7 +127,7 @@ The digiRunner application can be installed directly from Google Cloud Marketpla
 
 4. Select the previously created **GKE cluster** and fill in the required fields.
 5. Click **DEPLOY** to begin the installation process.<br>
-<image BORDER="0.75pt">![configure_png](resources/deploy.png)</image>
+<image BORDER=0.75px/>![configure_png](resources/deploy.png)
 6. The deployment starts automatically. Wait for a few seconds, and the status page will confirm when the installation is complete.<br>
 ![configure_png](resources/deploying_process.png)<br>
 ![configure_png](resources/deploy_finish.png)<br><br>
