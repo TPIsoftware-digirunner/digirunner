@@ -117,7 +117,7 @@ kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketpl
 ### Install the digirunner Application via Marketplace
 The digiRunner application can be installed directly from Google Cloud Marketplace.
 1. Open the **Marketplace** from the Google Cloud console.<br>
-![configure_png](resources/Marketplace_onGCs_updated.png)<br>
+![configure_png](resources/Marketplace_onGCs.png)<br>
 
 2. Search for **digiRunner** or **digi** in the Marketplace.<br>
 ![configure_png](resources/market_page.png)<br>
