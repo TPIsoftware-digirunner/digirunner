@@ -75,6 +75,7 @@ gcloud container node-pools update $NODEPOOL_NAME --cluster=$CLUSTER_NAME --regi
 gcloud sql instances create $DB_INSTANCE --database-version=POSTGRES_15 --cpu=2 --memory=3.75GiB --zone=$ZONE --root-password=$DB_PASSWORD --availability-type=zonal --edition=enterprise
 gcloud sql databases create digirunner --instance=$DB_INSTANCE
 ```
+
 The **Kubernetes** and **database** infrastructure are now ready. Next, proceed to the marketplace to install the application.
 
 ### Set up Domain Name and Reserve External IP Address
@@ -351,3 +352,4 @@ kubectl scale --replicas=2 deployment/digirunner
 
 # digiRunner Installation Complete
 Your digiRunner is now properly configured and ready to use.
+
