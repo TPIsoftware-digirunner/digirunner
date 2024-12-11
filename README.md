@@ -16,10 +16,10 @@
 2. Follow the on-screen instructions to complete the installation.
 
 ## Prerequisites
-### Set up GKE cluster and Cloud SQL database
-1. Use the command provided below to create a GKE cluster and a PostgreSQL database.<br>
+### Set up GKE Cluster and Cloud SQL Database
+1. Use the commands provided below to create a GKE cluster and a PostgreSQL database.<br>
 2. Set up the **database password** and specify the **domain name** for digiRunner.<br>
-3. Replace the following variables in the command: `CLUSTER_NAME`, `DB_INSTANCE`, `DB_PASSWORD`, `REGION`, `ZONE` and `LOCATION`.<br>
+3. Replace the following variables in the commands: `CLUSTER_NAME`, `DB_INSTANCE`, `DB_PASSWORD`, `REGION`, `ZONE` and `LOCATION`.<br>
 **NOTE:** The **environment variables** set in Cloud shell will be lost upon session termination. You must re-export the environment variables after each session.<br>
 4. Ensure the variables `PROJECT_ID`, `PROJECT_NUM` and `OPERATOR` are correctly set, as they will be referenced in subsequent steps.<br>
 5. Verify that the **machine type** meets the minimun requirement of **n2d-standard-2** or higher.<br>
